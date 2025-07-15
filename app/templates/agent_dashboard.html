@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3 class="text-primary"><i class="bi bi-card-list"></i> Your Assigned Leads</h3>
+
+  {% if leads %}
+    <table class="table table-bordered mt-3">
+      <thead class="table-light">
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Update Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in leads %}
+        <tr>
+          <td>{{ lead.name }}</td>
+          <td>{{ lead.email or '-' }}</td>
+          <td>{{ lead.phone }}</td>
+          <td>{{ lead.status }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('update_lead_status') }}">
+              <input type="hidden" name="lead_id" value="{{ lead.id }}">
+              <div class="d-flex">
+                <select name="status_{{ lead.id }}" class="form-select form-select-sm me-2">
+                  <option value="Pending" {% if lead.status == 'Pending' %}selected{% endif %}>Pending</option>
+                  <option value="Interested" {% if lead.status == 'Interested' %}selected{% endif %}>Interested</option>
+                  <option value="Not Interested" {% if lead.status == 'Not Interested' %}selected{% endif %}>Not Interested</option>
+                  <option value="Talk Later" {% if lead.status == 'Talk Later' %}selected{% endif %}>Talk Later</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-primary">Update</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No leads assigned yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

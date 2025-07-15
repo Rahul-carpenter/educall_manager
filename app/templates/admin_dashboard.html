@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-primary">Agent-wise Leads Overview</h2>
+
+  <!-- Agent Filter Section -->
+  <div class="mb-4">
+    <h5>Select Agents:</h5>
+    {% for agent in leads_by_agent %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input agent-toggle" type="checkbox" id="agent_{{ loop.index }}" data-agent="{{ agent }}">
+        <label class="form-check-label" for="agent_{{ loop.index }}">{{ agent }}</label>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Lead Tables by Agent -->
+  {% for agent, summary in leads_by_agent.items() %}
+    <div class="agent-section mb-4" id="section_{{ agent }}" style="display: none;">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <strong>{{ agent }}</strong> - Assigned Leads
+          <span class="ms-3 badge bg-light text-dark">Total: {{ summary.total }}</span>
+          <span class="ms-2 badge bg-success">Interested: {{ summary.interested }}</span>
+          <span class="ms-2 badge bg-danger">Not Interested: {{ summary.not_interested }}</span>
+          <span class="ms-2 badge bg-warning text-dark">Talk to Later: {{ summary.talk_later }}</span>
+        </div>
+        <div class="card-body">
+          {% if summary.leads %}
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped">
+                <thead class="table-light">
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>City</th>
+                    <th>State</th>
+                    <th>Course</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for lead in summary.leads %}
+                    <tr>
+                      <td>{{ lead.name }}</td>
+                      <td>{{ lead.email }}</td>
+                      <td>{{ lead.phone }}</td>
+                      <td>{{ lead.city }}</td>
+                      <td>{{ lead.state }}</td>
+                      <td>{{ lead.course }}</td>
+                      <td>
+                        <span class="badge
+                          {% if lead.status == 'Interested' %} bg-success
+                          {% elif lead.status == 'Not Interested' %} bg-danger
+                          {% elif lead.status == 'Talk to Later' %} bg-warning text-dark
+                          {% else %} bg-secondary
+                          {% endif %}">
+                          {{ lead.status }}
+                        </span>
+                      </td>
+                      <td>{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted">No leads assigned.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Toggle JavaScript -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const toggles = document.querySelectorAll('.agent-toggle');
+    toggles.forEach(toggle => {
+      toggle.addEventListener('change', () => {
+        const agent = toggle.dataset.agent;
+        const section = document.getElementById('section_' + agent);
+        if (section) {
+          section.style.display = toggle.checked ? 'block' : 'none';
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

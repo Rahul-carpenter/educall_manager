@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h3 class="mb-4">Assign Leads to {{ agent.username }}</h3>
+
+  <form method="post" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label for="lead_file" class="form-label">Upload CSV or Excel File</label>
+      <input class="form-control" type="file" name="lead_file" id="lead_file" accept=".csv, .xls, .xlsx" required>
+    </div>
+    <button type="submit" class="btn btn-success"><i class="bi bi-upload"></i> Upload & Assign</button>
+  </form>
+</div>
+{% endblock %}

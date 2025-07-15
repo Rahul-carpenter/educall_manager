@@ -13,19 +13,31 @@
         <div class="mb-3">
           <label for="name" class="form-label">Student Name</label>
           <input type="text" class="form-control" id="name" name="name" required>
-          <div class="form-text">Enter the full name of the student.</div>
         </div>
 
         <div class="mb-3">
           <label for="email" class="form-label">Email Address</label>
           <input type="email" class="form-control" id="email" name="email" required>
-          <div class="form-text">We'll never share the email with anyone else.</div>
         </div>
 
         <div class="mb-3">
           <label for="phone" class="form-label">Phone Number</label>
           <input type="text" class="form-control" id="phone" name="phone" required pattern="[0-9]{10}">
-          <div class="form-text">Enter a 10-digit phone number.</div>
+        </div>
+
+        <div class="mb-3">
+          <label for="city" class="form-label">City</label>
+          <input type="text" class="form-control" id="city" name="city" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="state" class="form-label">State</label>
+          <input type="text" class="form-control" id="state" name="state" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="course" class="form-label">Interested Course</label>
+          <input type="text" class="form-control" id="course" name="course" required>
         </div>
 
         <div class="mb-3">
@@ -38,6 +50,18 @@
           </select>
         </div>
 
+        {% if agents %}
+        <div class="mb-3">
+          <label for="agent_id" class="form-label">Assign to Agent</label>
+          <select class="form-select" id="agent_id" name="agent_id">
+            <option value="">-- Select Agent --</option>
+            {% for agent in agents %}
+              <option value="{{ agent.id }}">{{ agent.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
         <div class="d-flex justify-content-between">
           <button type="submit" class="btn btn-success">
             <i class="bi bi-check-circle"></i> Save Lead
@@ -49,7 +73,6 @@
   </div>
 </div>
 
-<!-- Optional: loading spinner on submit -->
 <script>
 function showLoading(form) {
   const button = form.querySelector('button[type="submit"]');

@@ -4,3 +4,8 @@ Flask-Migrate
 mysql-connector-python
 python-dotenv
 
+pandas               # For reading CSV/Excel files
+openpyxl             # To handle .xlsx files with pandas
+Werkzeug             # For secure file upload handling (Flask uses this under the hood)
+Flask-Login          # For user session management
+Flask-WTF            # For form handling and CSRF protection

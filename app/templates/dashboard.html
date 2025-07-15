@@ -4,19 +4,33 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0">EduCall Manager Dashboard</h2>
-    <a href="/add-lead" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add New Lead</a>
+    
+    {% if session.get("role") == "admin" %}
+      <a href="/add-lead" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Add New Lead
+      </a>
+    {% endif %}
   </div>
+
+  <!-- ✅ Show update button only for agents -->
+  {% if session.get("role") == "agent" %}
+    <div class="text-end mb-3">
+      <a href="{{ url_for('agent_dashboard') }}" class="btn btn-warning">
+        <i class="bi bi-pencil-square"></i> Update Lead Status
+      </a>
+    </div>
+  {% endif %}
 
   <div class="card shadow-sm">
     <div class="card-body">
       <h4 class="card-title mb-3">Student Leads</h4>
 
-      <!-- Search -->
+      <!-- 🔍 Search -->
       <div class="mb-3">
-        <input type="text" class="form-control" id="leadSearch" placeholder="Search by name, email, phone..." onkeyup="filterTable()">
+        <input type="text" class="form-control" id="leadSearch" placeholder="Search by name, email, phone, city, state, course..." onkeyup="filterTable()">
       </div>
 
-      <!-- Table -->
+      <!-- 📋 Table -->
       <div class="table-responsive">
         <table class="table table-bordered table-striped table-hover align-middle" id="leadTable">
           <thead class="table-dark">
@@ -24,38 +38,45 @@
               <th>Name</th>
               <th>Email</th>
               <th>Phone</th>
+              <th>City</th>
+              <th>State</th>
+              <th>Course</th>
               <th>Status</th>
               <th>Created At</th>
             </tr>
           </thead>
           <tbody>
             {% for lead in leads %}
-            <tr>
-              <td>{{ lead.name }}</td>
-              <td>{{ lead.email }}</td>
-              <td>{{ lead.phone }}</td>
-              <td>
-                <span class="badge 
-                  {% if lead.status == 'New' %}bg-primary
-                  {% elif lead.status == 'Interested' %}bg-success
-                  {% elif lead.status == 'Not Interested' %}bg-danger
-                  {% elif lead.status == 'Follow-Up' %}bg-warning text-dark
-                  {% endif %}">
-                  {{ lead.status }}
-                </span>
-              </td>
-              <td>{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-            </tr>
+              <tr>
+                <td>{{ lead.name }}</td>
+                <td>{{ lead.email }}</td>
+                <td>{{ lead.phone }}</td>
+                <td>{{ lead.city }}</td>
+                <td>{{ lead.state }}</td>
+                <td>{{ lead.course }}</td>
+                <td>
+                  <span class="badge 
+                    {% if lead.status == 'New' %}bg-primary
+                    {% elif lead.status == 'Interested' %}bg-success
+                    {% elif lead.status == 'Not Interested' %}bg-danger
+                    {% elif lead.status == 'Follow-Up' %}bg-warning text-dark
+                    {% else %}bg-secondary
+                    {% endif %}">
+                    {{ lead.status }}
+                  </span>
+                </td>
+                <td>{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              </tr>
             {% else %}
-            <tr>
-              <td colspan="5" class="text-center text-muted">No leads found.</td>
-            </tr>
+              <tr>
+                <td colspan="8" class="text-center text-muted">No leads found.</td>
+              </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
-      <!-- Pagination UI (non-functional, for look only) -->
+      <!-- 🔢 Pagination UI (optional/placeholder only) -->
       <nav>
         <ul class="pagination justify-content-center">
           <li class="page-item disabled"><a class="page-link">Previous</a></li>
@@ -68,7 +89,7 @@
   </div>
 </div>
 
-<!-- JavaScript for filtering -->
+<!-- 🔍 JS: Filter Table -->
 <script>
 function filterTable() {
   const input = document.getElementById("leadSearch").value.toLowerCase();

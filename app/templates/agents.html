@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-4 text-primary"><i class="bi bi-people-fill"></i> Agents List</h3>
+  {% if agents %}
+  <table class="table table-bordered table-striped">
+    <thead class="table-primary">
+      <tr>
+        <th>#</th>
+        <th>Username</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for agent in agents %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ agent.username }}</td>
+        <td>
+          <a href="{{ url_for('assign_leads', agent_id=agent.id) }}" class="btn btn-sm btn-success">
+            Assign Leads
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No agents found.</p>
+  {% endif %}
+</div>
+{% endblock %}
