@@ -135,8 +135,12 @@ def assign_leads(agent_id):
 
                 for _, row in df.iterrows():
                     lead = Lead(
-                        name=row['name'],                # Must match column in Excel/CSV
-                        phone=row['phone'],              # Match case exactly (e.g., 'phone' vs 'Phone')
+                        name=row['Name'],                # Must match column in Excel/CSV
+                        phone=row['Phone'],              # Match case exactly (e.g., 'phone' vs 'Phone')
+                        email=row.get('Email'),
+                        city=row.get('City'),
+                        state=row.get('State'),
+                        course=row.get('Course'),
                         #status='Pending',
                         agent_id=agent.id
                     )
