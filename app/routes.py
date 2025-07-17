@@ -7,6 +7,33 @@ from app import app, db
 from app.models import Lead, User  # Ensure User model is defined
 from werkzeug.security import check_password_hash
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_
+
+@app.route('/global-search')
+@login_required(role='admin')
+def global_search():
+    query = request.args.get('q', '').strip()
+    agents, leads, tasks = [], [], []
+    if query and len(query) > 1:
+        agents = User.query.filter(
+            User.role == "agent",
+            User.username.ilike(f"%{query}%")
+        ).all()
+        leads = Lead.query.filter(
+            or_(
+                Lead.name.ilike(f"%{query}%"),
+                Lead.email.ilike(f"%{query}%"),
+                Lead.phone.ilike(f"%{query}%"),
+                Lead.city.ilike(f"%{query}%"),
+                Lead.state.ilike(f"%{query}%"),
+                Lead.course.ilike(f"%{query}%"),
+                Lead.status.ilike(f"%{query}%")
+            )
+        ).all()
+        # If you add a Task model, search it similarly
+        # tasks = Task.query.filter(Task.title.ilike(f"%{query}%")).all()
+    return render_template("global_search.html", query=query, agents=agents, leads=leads, tasks=tasks)
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
