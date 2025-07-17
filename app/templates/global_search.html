@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h4>Search results for "<strong>{{ query }}</strong>"</h4>
+
+    <h5 class="mt-4">Agents</h5>
+    {% if agents %}
+      <ul>
+        {% for a in agents %}
+          <li>{{ a.username }} (ID: {{ a.id }})</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">No agents found.</p>
+    {% endif %}
+
+    <h5 class="mt-4">Leads</h5>
+    {% if leads %}
+      <ul>
+        {% for l in leads %}
+          <li>{{ l.name }} ({{ l.email or '-' }}, {{ l.phone }}, Status: {{ l.status }})</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">No leads found.</p>
+    {% endif %}
+
+    {# Uncomment/implement for tasks in the future #}
+    {# 
+    <h5 class="mt-4">Tasks</h5>
+    {% if tasks %}
+      <ul>
+        {% for t in tasks %}
+          <li>{{ t.title }} by {{ t.owner.username }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">No tasks found.</p>
+    {% endif %}
+    #}
+</div>
+{% endblock %}
