@@ -21,7 +21,7 @@ services:
     env_file:
       - .env
     volumes:
-      - .:/app
+      - .:/app_for
 
 volumes:
   db_data:
