@@ -13,7 +13,7 @@ services:
 
   web:
     build: .
-    command: flask run --host=0.0.0.0
+    command: python run.py
     ports:
       - "5000:5000"
     depends_on:
