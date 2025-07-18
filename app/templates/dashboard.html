@@ -1,43 +1,43 @@
 {% extends "base.html" %}
 
+{% block title %}My Dashboard | EduCall Manager{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">EduCall Manager Dashboard</h2>
-    
-    {% if session.get("role") == "admin" %}
-      <a href="/add-lead" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> Add New Lead
+    <h2 class="mb-0 text-dark">
+      <i class="bi bi-house-check-fill text-primary"></i> My Dashboard
+    </h2>
+
+    <!-- 🔁 Optional: Link to Update Lead Status Page -->
+    {% if session.get("role") == "agent" %}
+      <a href="{{ url_for('agent_dashboard') }}" class="btn btn-outline-primary">
+        <i class="bi bi-pencil-square me-1"></i> Update Lead Status
       </a>
     {% endif %}
   </div>
 
-  <!-- ✅ Show update button only for agents -->
-  {% if session.get("role") == "agent" %}
-    <div class="text-end mb-3">
-      <a href="{{ url_for('agent_dashboard') }}" class="btn btn-warning">
-        <i class="bi bi-pencil-square"></i> Update Lead Status
-      </a>
-    </div>
-  {% endif %}
-
+  <!-- Leads Section -->
   <div class="card shadow-sm">
     <div class="card-body">
-      <h4 class="card-title mb-3">Student Leads</h4>
+      <h4 class="card-title mb-3">My Assigned Leads</h4>
 
       <!-- 🔍 Search -->
-      <div class="mb-3">
-        <input type="text" class="form-control" id="leadSearch" placeholder="Search by name, email, phone, city, state, course..." onkeyup="filterTable()">
+      <div class="input-group mb-3">
+        <input id="leadSearch" class="form-control" type="search" placeholder="Search leads..." onkeyup="filterTable()">
+        <button class="btn btn-outline-secondary" onclick="filterTable()">
+          <i class="bi bi-search"></i>
+        </button>
       </div>
 
-      <!-- 📋 Table -->
+      <!-- 📋 Lead Table -->
       <div class="table-responsive">
-        <table class="table table-bordered table-striped table-hover align-middle" id="leadTable">
+        <table class="table table-hover align-middle text-center" id="leadTable">
           <thead class="table-dark">
             <tr>
               <th>Name</th>
-              <th>Email</th>
               <th>Phone</th>
+              <th>Email</th>
               <th>City</th>
               <th>State</th>
               <th>Course</th>
@@ -49,13 +49,13 @@
             {% for lead in leads %}
               <tr>
                 <td>{{ lead.name }}</td>
-                <td>{{ lead.email }}</td>
                 <td>{{ lead.phone }}</td>
+                <td>{{ lead.email }}</td>
                 <td>{{ lead.city }}</td>
                 <td>{{ lead.state }}</td>
                 <td>{{ lead.course }}</td>
                 <td>
-                  <span class="badge 
+                  <span class="badge rounded-pill 
                     {% if lead.status == 'New' %}bg-primary
                     {% elif lead.status == 'Interested' %}bg-success
                     {% elif lead.status == 'Not Interested' %}bg-danger
@@ -65,31 +65,24 @@
                     {{ lead.status }}
                   </span>
                 </td>
-                <td>{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><small class="text-muted">{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
               </tr>
             {% else %}
               <tr>
-                <td colspan="8" class="text-center text-muted">No leads found.</td>
+                <td colspan="8" class="text-center py-4 text-muted">
+                  <i class="bi bi-emoji-frown fs-3"></i> <br>
+                  No leads assigned to you yet.
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-
-      <!-- 🔢 Pagination UI (optional/placeholder only) -->
-      <nav>
-        <ul class="pagination justify-content-center">
-          <li class="page-item disabled"><a class="page-link">Previous</a></li>
-          <li class="page-item active"><a class="page-link" href="#">1</a></li>
-          <li class="page-item"><a class="page-link" href="#">2</a></li>
-          <li class="page-item"><a class="page-link" href="#">Next</a></li>
-        </ul>
-      </nav>
     </div>
   </div>
 </div>
 
-<!-- 🔍 JS: Filter Table -->
+<!-- JS Search Filter Function -->
 <script>
 function filterTable() {
   const input = document.getElementById("leadSearch").value.toLowerCase();
