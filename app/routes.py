@@ -247,25 +247,28 @@ def update_lead_status():
 def upload_leads():
     if request.method == 'POST':
         file = request.files['file']
-        agent_id = request.form['agent_id']
+        agent_id = request.form.get('agent_id')
 
-        if file and file.filename.endswith(('.csv', '.xlsx')):
+        if file and file.filename.endswith(('.csv', '.xlsx', '.xls')):
+            from werkzeug.utils import secure_filename
             filename = secure_filename(file.filename)
-            filepath = os.path.join('uploads', filename)
+
+            # 🚀 Ensure uploads directory exists
+            upload_dir = os.path.join(app.root_path, 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+
+            filepath = os.path.join(upload_dir, filename)
             file.save(filepath)
 
-            # Save file info in DB
-            new_file = UploadedLeadFile(filename=filename, agent_id=agent_id)
-            db.session.add(new_file)
-            db.session.commit()
-
-            flash("Lead file uploaded successfully.", "success")
+            # (Optional) Save filename in DB, process contents, etc.
+            flash("File uploaded successfully!", "success")
             return redirect(url_for('upload_leads'))
         else:
             flash("Invalid file type.", "danger")
 
     agents = User.query.filter_by(role='agent').all()
     return render_template('upload_leads.html', agents=agents)
+
 
 
 
