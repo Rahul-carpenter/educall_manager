@@ -8,6 +8,25 @@ from app.models import Lead, User  # Ensure User model is defined
 from werkzeug.security import check_password_hash
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
+from functools import wraps
+#from app.utils import login_required
+
+
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user_id = session.get("user_id")
+            user_role = session.get("role")
+            if not user_id:
+                flash("You must be logged in to access this page.", "warning")
+                return redirect(url_for("login"))
+            if role and user_role != role:
+                flash("Unauthorized access.", "danger")
+                return redirect(url_for("index"))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 @app.route('/global-search')
 @login_required(role='admin')
