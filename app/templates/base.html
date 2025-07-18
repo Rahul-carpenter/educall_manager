@@ -14,26 +14,40 @@
       background: linear-gradient(to right, #e9eaf6, #f8f9fa 60%);
       min-height: 100vh;
     }
+
     .navbar {
       box-shadow: 0 2px 8px rgba(87, 92, 255, 0.06);
     }
-    .navbar-brand span {
-      color: #5680e9;
-      animation: flicker 2s infinite alternate;
+
+    .brand-title {
+      letter-spacing: 1px;
       font-weight: bold;
     }
-    @keyframes flicker {
-      from { opacity: 1; }
-      to   { opacity: 0.8; text-shadow: 0 0 7px #5680e9, 0 0 30px #8860d0;}
+
+    .brand-title .highlight {
+      color: #ffc107; /* Glowing golden yellow */
+      animation: glow 2s ease-in-out infinite alternate;
     }
+
+    @keyframes glow {
+      from {
+        text-shadow: 0 0 6px #ffecb3, 0 0 10px #ffc107;
+      }
+      to {
+        text-shadow: 0 0 12px #ffd740, 0 0 18px #ffc107;
+      }
+    }
+
     .search-bar input:focus {
       box-shadow: 0 0 12px #5680e988;
       border-color: #5680e9;
     }
+
     .navbar-nav .nav-link.active {
       font-weight: bold;
-      color: #5680e9 !important;
+      color: #ffc107 !important;
     }
+
     .content-glass {
       background: rgba(255,255,255,0.95);
       border-radius: 18px;
@@ -41,6 +55,7 @@
       padding: 36px 28px 32px;
       margin-top: 32px;
     }
+
     footer {
       background: linear-gradient(90deg, #5680e9dd 20%, #8860d0bb 100%);
       color: #fff;
@@ -48,6 +63,7 @@
       border-top: 1px solid #e0e3ff;
       margin-top: 42px;
     }
+
     footer small {
       letter-spacing: .5px;
       opacity: 0.95;
@@ -59,9 +75,11 @@
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
     <div class="container">
-      <a class="navbar-brand d-flex align-items-center" href="/">
+      <a class="navbar-brand d-flex align-items-center fs-4" href="/">
         <i class="bi bi-mortarboard-fill me-2"></i>
-        <span>Edu<span style="color: #8860d0;">Call</span> Manager</span>
+        <span class="brand-title">
+          <span class="text-white">Edu</span><span class="highlight">Call</span> <span class="text-white">Manager</span>
+        </span>
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarUiNav" aria-controls="navbarUiNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -75,7 +93,7 @@
             {% if session.get("role") == "admin" %}
               <li class="nav-item"><a class="nav-link{% if request.endpoint=='view_agents' %} active{% endif %}" href="{{ url_for('view_agents') }}">Agents</a></li>
               <li class="nav-item"><a class="nav-link{% if request.endpoint=='create_user' %} active{% endif %}" href="{{ url_for('create_user') }}">Add User</a></li>
-              <li class="nav-item"><a class="nav-link{% if request.endpoint=='upload_leads' %} active{% endif %}" href="{{ url_for('upload_leads') }}">Upload Leads</a></li>
+              <li class="nav-item"><a class="nav-link{% if request.endpoint=='view_agents' %} active{% endif %}" href="{{ url_for('view_agents') }}">Assign Leads</a></li>
             {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
@@ -89,7 +107,6 @@
             </li>
           {% endif %}
         </ul>
-        {# --- Global Search for admin --- #}
         {% if session.get("role") == "admin" %}
           <form class="d-flex search-bar ms-3" method="GET" action="{{ url_for('global_search') }}">
             <input class="form-control me-2" type="search" name="q" placeholder="Search..." aria-label="Search" style="min-width: 180px;">
@@ -116,7 +133,7 @@
     {% endwith %}
   </div>
 
-  <!-- Main Content Glass -->
+  <!-- Main Content -->
   <div class="container">
     <div class="content-glass shadow-sm">
       {% block content %}{% endblock %}
@@ -131,6 +148,7 @@
       <span style="color: #e66077;">&#10084;</span> using <i class="bi bi-bootstrap"></i>
     </small>
   </footer>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
