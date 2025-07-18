@@ -12,6 +12,6 @@ app.secret_key = os.getenv("SECRET_KEY", "fallback_secret_key")
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-app.jinja_env.globals['datetime'] = datetime
+app.jinja_env.globals['datetime'] = datetime.datetime
 
 from app import routes, models
