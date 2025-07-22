@@ -1,10 +1,11 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables early
+# Load environment variables from .env
 load_dotenv()
 
 class Config:
+    # Database Configuration
     DB_USER = os.getenv("DB_USER")
     DB_PASSWORD = os.getenv("DB_PASSWORD")
     DB_HOST = os.getenv("DB_HOST")
@@ -17,3 +18,14 @@ class Config:
         f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Secret Key
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret")
+
+    # Mail Settings (✅ NEW)
+    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
+    MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() in ["1", "true", "yes"]
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+    MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", MAIL_USERNAME)

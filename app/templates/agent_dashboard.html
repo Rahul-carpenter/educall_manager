@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
+
 <div class="container mt-4">
   <h3 class="text-primary"><i class="bi bi-card-list"></i> Your Assigned Leads</h3>
 
   {% if leads %}
-    <table class="table table-bordered mt-3">
+    <table class="table table-bordered table-striped mt-3 align-middle">
       <thead class="table-light">
         <tr>
           <th>Name</th>
@@ -12,6 +13,7 @@
           <th>Phone</th>
           <th>Status</th>
           <th>Update Status</th>
+          <th>Message & Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -35,12 +37,118 @@
               </div>
             </form>
           </td>
+          <td>
+            <button class="btn btn-outline-primary btn-sm open-msg-modal"
+              data-lead="{{ lead.id }}"
+              data-name="{{ lead.name }}"
+              data-email="{{ lead.email }}"
+              data-phone="{{ lead.phone }}">
+              📩 Send Message
+            </button>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   {% else %}
-    <p>No leads assigned yet.</p>
+    <div class="alert alert-info mt-4">No leads assigned yet.</div>
   {% endif %}
 </div>
+
+<!-- ✅ Toast Notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
+  <div id="toast" class="toast align-items-center text-white bg-primary border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-body">Action completed.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ Modal: Send Message -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Send Message to Lead</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="modal-message-form">
+          <input type="hidden" id="modal-lead-id">
+          <div class="mb-3">
+            <label class="form-label">Message to Lead</label>
+            <textarea id="messageToLead" class="form-control" rows="3" placeholder="Write message to send via WhatsApp or Email" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Note for Admin (Optional)</label>
+            <textarea id="noteToAdmin" class="form-control" rows="2" placeholder="This will only be visible to the admin"></textarea>
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-success" id="sendWhatsAppBtn">📱 WhatsApp</button>
+            <button type="button" class="btn btn-primary" id="sendEmailBtn">✉️ Email</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ JavaScript -->
+<script>
+let currentLead = {};
+
+document.querySelectorAll(".open-msg-modal").forEach(btn => {
+  btn.onclick = () => {
+    const modal = new bootstrap.Modal(document.getElementById("messageModal"));
+    currentLead = {
+      id: btn.dataset.lead,
+      email: btn.dataset.email,
+      phone: btn.dataset.phone,
+    };
+    document.getElementById("modal-lead-id").value = currentLead.id;
+    document.getElementById("messageToLead").value = "";
+    document.getElementById("noteToAdmin").value = "";
+    modal.show();
+  };
+});
+
+document.getElementById("sendWhatsAppBtn").onclick = () => {
+  const msg = document.getElementById("messageToLead").value.trim();
+  if (!msg) return showToast("⚠️ Message is required.");
+  if (!currentLead.phone) return showToast("❌ No WhatsApp number.");
+  window.open(`https://wa.me/${currentLead.phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  showToast("✅ WhatsApp opened.");
+};
+
+document.getElementById("sendEmailBtn").onclick = async () => {
+  const msg = document.getElementById("messageToLead").value.trim();
+  const note = document.getElementById("noteToAdmin").value.trim();
+  if (!msg) return showToast("⚠️ Message required");
+
+  try {
+    const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: msg,
+        note_to_admin: note // ✅ Send note
+      })
+    });
+
+    const data = await res.json();
+    showToast(data.success ? "✅ Email sent!" : "❌ " + data.error);
+  } catch (err) {
+    console.error(err);
+    showToast("❌ Email send failed");
+  }
+};
+
+function showToast(message) {
+  document.getElementById("toast-body").textContent = message;
+  const toast = new bootstrap.Toast(document.getElementById("toast"), { delay: 3000 });
+  toast.show();
+}
+</script>
+
 {% endblock %}

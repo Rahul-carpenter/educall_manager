@@ -1,16 +1,16 @@
-from flask import render_template, request, redirect, url_for, session, flash
+from flask import render_template, request, redirect, url_for, session, flash, jsonify
 import pandas as pd
 from werkzeug.utils import secure_filename
 import os
 import traceback
-from app import app, db
+from app import app, db, mail
+from flask_mail import Message
 from app.models import Lead, User  # Ensure User model is defined
 from werkzeug.security import check_password_hash
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 from functools import wraps
 #from app.utils import login_required
-
 
 def login_required(role=None):
     def decorator(f):
@@ -27,6 +27,44 @@ def login_required(role=None):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+def send_email(to, subject="EduCall Notification", body=""):
+    try:
+        msg = Message(subject=subject, recipients=[to])
+        msg.body = body or "No message was provided."
+        mail.send(msg)
+        print(f"✅ Email sent to {to}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send email to {to}: {e}")
+        return False
+    
+@app.route('/ajax-send-lead-email/<int:lead_id>', methods=['POST'])
+@login_required(role='agent')
+def ajax_send_lead_email(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    data = request.get_json()
+    message = data.get("message", "").strip()
+    admin_note = data.get("note_to_admin", "").strip()  # 🆕
+
+    if not message:
+        return jsonify({"success": False, "error": "Message is empty."})
+
+    # Save the note
+    if admin_note:
+        lead.note_to_admin = admin_note
+        db.session.commit()  # 🔥 Save to DB
+
+    # Send email
+    success = send_email(
+        to=lead.email,
+        subject="Message from your EduCall Agent",
+        body=message
+    )
+
+    return jsonify({"success": success})
+
 
 @app.route('/global-search')
 @login_required(role='admin')

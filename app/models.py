@@ -27,9 +27,11 @@ class Lead(db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(20), nullable=False)
-    city = db.Column(db.String(100)) 
+    city = db.Column(db.String(100))
     state = db.Column(db.String(100))
     course = db.Column(db.String(100))
     status = db.Column(db.String(50), nullable=True)
+    note_to_admin = db.Column(db.Text, nullable=True) # 🆕 Add this line
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    agent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Linked to User (agent)
+    agent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
