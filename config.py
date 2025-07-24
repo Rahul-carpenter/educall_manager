@@ -1,28 +1,28 @@
 import os
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 
-# Load environment variables from .env
+# Load .env for local development
 load_dotenv()
 
 class Config:
-    # Database Configuration
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-    DB_HOST = os.getenv("DB_HOST")
-    DB_NAME = os.getenv("DB_NAME")
+    # Use full DATABASE_URL (Render gives this by default)
+    DATABASE_URL = os.getenv("DATABASE_URL")
 
-    if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_NAME]):
-        raise RuntimeError("Missing one or more environment variables.")
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL is not set!")
 
-    SQLALCHEMY_DATABASE_URI = (
-        f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
-    )
+    # Convert postgres:// to postgresql:// (required by SQLAlchemy)
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Secret Key
     SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret")
 
-    # Mail Settings (✅ NEW)
+    # Mail Settings
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() in ["1", "true", "yes"]
