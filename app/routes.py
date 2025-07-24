@@ -15,20 +15,20 @@ from werkzeug.security import generate_password_hash
 #from app.utils import login_required
 @app.route('/create-admin')
 def create_admin():
-    username = request.args.get('username')
-    password = request.args.get('password')
+    username = request.args.get('username', 'admin')
+    password = request.args.get('password', 'admin123')
 
-    if not username or not password:
-        return 'Username and password are required.', 400
+    # Check if admin already exists
+    if User.query.filter_by(username=username).first():
+        return f"User '{username}' already exists."
 
+    # Hash password and create user
     hashed_password = generate_password_hash(password)
-
-    new_user = User(username=username, password=hashed_password, role='admin')
+    new_user = User(username=username, password_hash=hashed_password, role='admin')
     db.session.add(new_user)
     db.session.commit()
 
-    return 'Admin user created successfully.'
-
+    return f"Admin user '{username}' created successfully!"
 def login_required(role=None):
     def decorator(f):
         @wraps(f)
