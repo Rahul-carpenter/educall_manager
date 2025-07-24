@@ -1,29 +1,25 @@
-from dotenv import load_dotenv
-import os
-from flask_migrate import upgrade, migrate, init, stamp
 from app import app, db
+from flask_migrate import Migrate, upgrade, migrate, init, stamp
+import os
 
-# Load environment variables from .env
-load_dotenv()
+migrations_dir = os.path.join(os.path.dirname(__file__), "migrations")
 
-def run_migrations():
-    migrations_dir = os.path.join(os.path.dirname(__file__), "migrations")
-    
+migrate_obj = Migrate(app, db)
+
+def setup_migrations():
     with app.app_context():
         if not os.path.exists(migrations_dir):
-            print("📂 No migrations folder found. Initializing Alembic...")
+            print("📂 No migrations folder found. Initializing...")
             init()
-            stamp(revision="head")  # 👈 Avoid missing revision errors
-            migrate()
+            stamp()  # mark current DB state to avoid duplicate revision issues
+            migrate(message="Initial migration")
             upgrade()
         else:
             print("✅ Migrations folder found. Running upgrade...")
-            try:
-                migrate()
-                upgrade()
-            except Exception as e:
-                print(f"⚠️ Migration error: {e}")
+            migrate(message="Auto migration")
+            upgrade()
 
 if __name__ == "__main__":
-    run_migrations()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    setup_migrations()
+    print("🚀 Starting the Flask app...")
+    app.run(debug=True)  # Turn off debug in production
