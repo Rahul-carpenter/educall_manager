@@ -11,6 +11,23 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 from functools import wraps
 #from app.utils import login_required
+@app.route('/create-admin')
+def create_admin():
+    username = request.args.get('username', 'admin')
+    email = request.args.get('email', 'admin@example.com')
+    password = request.args.get('password', 'admin123')
+
+    # Check if user already exists
+    if User.query.filter_by(username=username).first():
+        return f"User '{username}' already exists."
+
+    # Create new user with admin role
+    hashed_password = generate_password_hash(password)
+    new_user = User(username=username, email=email, password=hashed_password, role='admin')
+    db.session.add(new_user)
+    db.session.commit()
+
+    return f"Admin user '{username}' created successfully!"
 
 def login_required(role=None):
     def decorator(f):
