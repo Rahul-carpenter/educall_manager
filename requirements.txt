@@ -3,6 +3,8 @@ Flask-SQLAlchemy==3.1.0
 Flask-Migrate==4.0.5
 mysql-connector-python==8.4.0
 python-dotenv==1.0.1
+psycopg2-binary==2.9.9
+
 
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
