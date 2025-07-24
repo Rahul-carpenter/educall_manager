@@ -10,6 +10,8 @@ from werkzeug.security import check_password_hash
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 from functools import wraps
+from werkzeug.security import generate_password_hash
+
 #from app.utils import login_required
 @app.route('/create-admin')
 def create_admin():
