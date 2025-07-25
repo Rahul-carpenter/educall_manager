@@ -10,6 +10,8 @@ from werkzeug.security import check_password_hash
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 from functools import wraps
+import re
+from email.utils import parseaddr
 #from app.utils import login_required
 
 def login_required(role=None):
@@ -27,6 +29,69 @@ def login_required(role=None):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+def is_valid_email(email):
+    if not email:
+        return False
+    address = parseaddr(email)[1]
+    regex = r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
+    return re.match(regex, address) is not None
+
+@app.route('/admin/send-bulk-email', methods=['POST'])
+@login_required(role='admin')
+def send_bulk_email():
+    data = request.get_json()
+    subject = data.get('subject', 'EduCall Bulk Email')
+    body = data.get('body', 'Hello, this is a bulk email from EduCall Manager.')
+    
+    leads = Lead.query.filter(Lead.email.isnot(None)).all()
+    sent_count = 0
+    skipped_count = 0
+    
+    for lead in leads:
+        email = lead.email
+        if is_valid_email(email):
+            try:
+                msg = Message(subject=subject, recipients=[email])
+                msg.body = body
+                mail.send(msg)
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed to send to {email}: {e}")
+                skipped_count += 1
+        else:
+            skipped_count += 1
+    
+    return jsonify({'success': True, 'sent': sent_count, 'skipped': skipped_count})
+
+@app.route('/admin/send-bulk-email-agent/<string:agent_username>', methods=['POST'])
+@login_required(role='admin')
+def send_bulk_email_agent(agent_username):
+    data = request.get_json() or {}
+    subject = data.get('subject', 'EduCall Bulk Email')
+    body = data.get('body', 'Hello, this is a bulk email from EduCall Manager.')
+
+    leads = Lead.query.join(User).filter(User.username == agent_username, Lead.email.isnot(None)).all()
+
+    sent_count = 0
+    skipped_count = 0
+
+    for lead in leads:
+        email = lead.email
+        if is_valid_email(email):
+            try:
+                msg = Message(subject=subject, recipients=[email])
+                msg.body = body
+                mail.send(msg)
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed to send to {email}: {e}")
+                skipped_count += 1
+        else:
+            skipped_count += 1
+
+    return jsonify({'success': True, 'sent': sent_count, 'skipped': skipped_count})
+
 
 
 def send_email(to, subject="EduCall Notification", body=""):
@@ -46,24 +111,28 @@ def ajax_send_lead_email(lead_id):
     lead = Lead.query.get_or_404(lead_id)
     data = request.get_json()
     message = data.get("message", "").strip()
-    admin_note = data.get("note_to_admin", "").strip()  # 🆕
+    note = data.get("note_to_admin", "").strip()
+    only_note = data.get("only_note", False)
 
-    if not message:
-        return jsonify({"success": False, "error": "Message is empty."})
-
-    # Save the note
-    if admin_note:
-        lead.note_to_admin = admin_note
-        db.session.commit()  # 🔥 Save to DB
-
-    # Send email
-    success = send_email(
-        to=lead.email,
-        subject="Message from your EduCall Agent",
-        body=message
-    )
-
-    return jsonify({"success": success})
+    if only_note:  # Agent clicked "Send Note to Admin" only
+        if note:
+            lead.note_to_admin = note
+            db.session.commit()
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "error": "Note cannot be empty."})
+    else:
+        if not message:
+            return jsonify({"success": False, "error": "Message can't be empty"})
+        if note:
+            lead.note_to_admin = note
+            db.session.commit()
+        success = send_email(
+            to=lead.email,
+            subject="Message from EduCall",
+            body=message
+        )
+        return jsonify({"success": success})
 
 
 @app.route('/global-search')
