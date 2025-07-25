@@ -38,12 +38,17 @@
             </form>
           </td>
           <td>
-            <button class="btn btn-outline-primary btn-sm open-msg-modal"
+            <button
+              class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
+              style="background-color: #25D366; border-color: #25D366;"
               data-lead="{{ lead.id }}"
               data-name="{{ lead.name }}"
               data-email="{{ lead.email }}"
-              data-phone="{{ lead.phone }}">
-              📩 Send Message
+              data-phone="{{ lead.phone }}"
+              title="Send WhatsApp or Email"
+            >
+              <i class="bi bi-whatsapp" style="font-size: 1.3em"></i>
+              <span class="d-none d-sm-inline">WhatsApp / Email</span>
             </button>
           </td>
         </tr>
@@ -55,7 +60,7 @@
   {% endif %}
 </div>
 
-<!-- ✅ Toast Notification -->
+<!-- Toast Notification -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
   <div id="toast" class="toast align-items-center text-white bg-primary border-0" role="alert">
     <div class="d-flex">
@@ -65,7 +70,7 @@
   </div>
 </div>
 
-<!-- ✅ Modal: Send Message -->
+<!-- Modal: Send Message -->
 <div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -74,19 +79,32 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <form id="modal-message-form">
+        <form id="modal-message-form" autocomplete="off">
           <input type="hidden" id="modal-lead-id">
           <div class="mb-3">
-            <label class="form-label">Message to Lead</label>
-            <textarea id="messageToLead" class="form-control" rows="3" placeholder="Write message to send via WhatsApp or Email" required></textarea>
+            <label class="form-label">Message to Lead <span class="text-danger">*</span></label>
+            <textarea id="messageToLead" class="form-control" rows="3" maxlength="500" required placeholder="Write message to send via WhatsApp or Email"></textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label">Note for Admin (Optional)</label>
-            <textarea id="noteToAdmin" class="form-control" rows="2" placeholder="This will only be visible to the admin"></textarea>
+            <label class="form-label">Note for Admin <small class="text-muted">(Optional, visible only to admin)</small></label>
+            <textarea id="noteToAdmin" class="form-control" rows="2" maxlength="500" placeholder="This will only be visible to the admin"></textarea>
           </div>
-          <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-success" id="sendWhatsAppBtn">📱 WhatsApp</button>
-            <button type="button" class="btn btn-primary" id="sendEmailBtn">✉️ Email</button>
+          <div class="d-flex flex-column flex-sm-row justify-content-end gap-2">
+            <button type="button" class="btn btn-success d-flex align-items-center gap-1"
+                    style="background-color:#25D366; border-color:#25D366;" id="sendWhatsAppBtn">
+              <i class="bi bi-whatsapp" style="font-size:1.3em"></i>
+              WhatsApp
+            </button>
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-1"
+                    id="sendEmailBtn">
+              <i class="bi bi-envelope-fill" style="font-size:1.1em"></i>
+              Email
+            </button>
+            <button type="button" class="btn btn-warning d-flex align-items-center gap-1"
+                    id="sendNoteBtn">
+              <i class="bi bi-chat-left-text-fill"></i>
+              Send Note to Admin
+            </button>
           </div>
         </form>
       </div>
@@ -94,7 +112,7 @@
   </div>
 </div>
 
-<!-- ✅ JavaScript -->
+<!-- JavaScript for Messaging Modal -->
 <script>
 let currentLead = {};
 
@@ -104,7 +122,7 @@ document.querySelectorAll(".open-msg-modal").forEach(btn => {
     currentLead = {
       id: btn.dataset.lead,
       email: btn.dataset.email,
-      phone: btn.dataset.phone,
+      phone: btn.dataset.phone
     };
     document.getElementById("modal-lead-id").value = currentLead.id;
     document.getElementById("messageToLead").value = "";
@@ -125,22 +143,42 @@ document.getElementById("sendEmailBtn").onclick = async () => {
   const msg = document.getElementById("messageToLead").value.trim();
   const note = document.getElementById("noteToAdmin").value.trim();
   if (!msg) return showToast("⚠️ Message required");
-
   try {
     const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: msg,
-        note_to_admin: note // ✅ Send note
+        note_to_admin: note,
+        only_note: false
       })
     });
-
     const data = await res.json();
     showToast(data.success ? "✅ Email sent!" : "❌ " + data.error);
   } catch (err) {
     console.error(err);
     showToast("❌ Email send failed");
+  }
+};
+
+document.getElementById("sendNoteBtn").onclick = async () => {
+  const note = document.getElementById("noteToAdmin").value.trim();
+  if (!note) return showToast("⚠️ Please enter a note.");
+  try {
+    const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '',
+        note_to_admin: note,
+        only_note: true
+      })
+    });
+    const data = await res.json();
+    showToast(data.success ? "✅ Note sent to admin!" : "❌ " + data.error);
+  } catch (err) {
+    console.error(err);
+    showToast("❌ Failed to submit note");
   }
 };
 
