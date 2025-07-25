@@ -12,7 +12,26 @@ from sqlalchemy import or_
 from functools import wraps
 import re
 from email.utils import parseaddr
+from werkzeug.security import generate_password_hash
+
+
 #from app.utils import login_required
+'''@app.route('/create-admin')
+def create_admin():
+    username = request.args.get('username', 'admin')
+    password = request.args.get('password', 'admin123')
+
+    # Check if admin already exists
+    if User.query.filter_by(username=username).first():
+        return f"User '{username}' already exists."
+
+    # Hash password and create user
+    hashed_password = generate_password_hash(password)
+    new_user = User(username=username, password_hash=hashed_password, role='admin')
+    db.session.add(new_user)
+    db.session.commit()
+
+    return f"Admin user '{username}' created successfully!"'''
 
 def login_required(role=None):
     def decorator(f):
