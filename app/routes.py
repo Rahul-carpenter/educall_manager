@@ -13,7 +13,11 @@ from functools import wraps
 import re
 from email.utils import parseaddr
 from werkzeug.security import generate_password_hash
-
+from datetime import datetime
+from sqlalchemy import func
+import pandas as pd
+from io import BytesIO
+from flask import send_file
 
 #from app.utils import login_required
 '''@app.route('/create-admin')
@@ -33,6 +37,7 @@ def create_admin():
 
     return f"Admin user '{username}' created successfully!"'''
 
+
 def login_required(role=None):
     def decorator(f):
         @wraps(f)
@@ -48,6 +53,89 @@ def login_required(role=None):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+
+
+
+
+
+@app.route('/agent-dashboard/export-interested-leads', methods=['GET'])
+@login_required(role='agent')
+def export_interested_leads():
+    date_str = request.args.get('date')
+    try:
+        assign_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+
+    agent_id = session['user_id']
+    leads = Lead.query.filter(
+        Lead.agent_id == agent_id,
+        func.date(Lead.assigned_at) == assign_date,
+        Lead.status == 'Interested'
+    ).all()
+
+    if not leads:
+        return jsonify({'success': False, 'error': 'No interested leads on this date'}), 404
+
+    data = [{
+        'Name': lead.name,
+        'Email': lead.email,
+        'Phone': lead.phone,
+        'City': lead.city,
+        'State': lead.state,
+        'Course': lead.course,
+        'Status': lead.status,
+        'Assigned At': lead.assigned_at.strftime('%Y-%m-%d %H:%M'),
+    } for lead in leads]
+
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    filename = f"Interested_Leads_{date_str}.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/agent-dashboard/leads-by-date', methods=['GET'])
+@login_required(role='agent')
+def leads_by_date_for_agent():
+    date_str = request.args.get('date')
+    try:
+        assign_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+
+    agent_id = session['user_id']
+    leads = Lead.query.filter(
+        Lead.agent_id == agent_id,
+        func.date(Lead.assigned_at) == assign_date
+    ).order_by(Lead.created_at.desc()).all()
+
+    lead_list = []
+    for lead in leads:
+        lead_list.append({
+            'id': lead.id,
+            'name': lead.name,
+            'email': lead.email,
+            'phone': lead.phone,
+            'status': lead.status,
+            'city': lead.city,
+            'state': lead.state,
+            'course': lead.course,
+            'assigned_at': lead.assigned_at.strftime('%Y-%m-%d %H:%M') if lead.assigned_at else '',
+            'note_to_admin': lead.note_to_admin or '',
+        })
+
+    return jsonify({'success': True, 'leads': lead_list})
+
 
 def is_valid_email(email):
     if not email:
@@ -278,6 +366,8 @@ def view_agents():
     agents = User.query.filter_by(role="agent").all()
     return render_template("agents.html", agents=agents)
 
+
+
 @app.route('/assign-leads/<int:agent_id>', methods=['GET', 'POST'])
 def assign_leads(agent_id):
     if session.get('role') != 'admin':
@@ -305,16 +395,20 @@ def assign_leads(agent_id):
 
                 print("DEBUG Columns:", df.columns)
 
+                # Use the same assignment time for the whole batch
+                assignment_time = datetime.utcnow()
+
                 for _, row in df.iterrows():
                     lead = Lead(
-                        name=row['Name'],                # Must match column in Excel/CSV
-                        phone=row['Phone'],              # Match case exactly (e.g., 'phone' vs 'Phone')
+                        name=row['Name'],
+                        phone=row['Phone'],
                         email=row.get('Email'),
                         city=row.get('City'),
                         state=row.get('State'),
                         course=row.get('Course'),
-                        #status='Pending',
-                        agent_id=agent.id
+                        # status='Pending',
+                        agent_id=agent.id,
+                        assigned_at=assignment_time  # <-- Assign the timestamp here!
                     )
                     db.session.add(lead)
 
@@ -329,6 +423,7 @@ def assign_leads(agent_id):
                 return redirect(request.url)
 
     return render_template('assign_leads.html', agent=agent)
+
 
 @app.route('/update-status/<int:lead_id>', methods=['POST'])
 def update_lead_status_by_id(lead_id):
@@ -348,23 +443,20 @@ def update_lead_status_by_id(lead_id):
     flash("Lead status updated!", "success")
     return redirect(url_for('agent_dashboard'))
 
-@app.route('/update-lead-status', methods=['POST'])
-def update_lead_status():
-    if session.get('role') != 'agent':
-        return redirect(url_for('login'))
-
-    lead_id = request.form.get('lead_id')
-    status = request.form.get(f'status_{lead_id}')
+@app.route('/agent-dashboard/update-lead-status', methods=['POST'])
+@login_required(role='agent')
+def agent_update_lead_status():
+    data = request.get_json()
+    lead_id = data.get('lead_id')
+    new_status = data.get('status')
 
     lead = Lead.query.filter_by(id=lead_id, agent_id=session['user_id']).first()
-    if lead:
-        lead.status = status
-        db.session.commit()
-        flash("Lead status updated.", "success")
-    else:
-        flash("Lead not found or access denied.", "danger")
+    if not lead:
+        return jsonify({'success': False, 'error': 'Lead not found or unauthorized'}), 404
 
-    return redirect(url_for('agent_dashboard'))
+    lead.status = new_status
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Status updated successfully'})
 
 
 

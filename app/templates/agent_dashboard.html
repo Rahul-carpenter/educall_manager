@@ -2,69 +2,31 @@
 {% block content %}
 
 <div class="container mt-4">
-  <h3 class="text-primary"><i class="bi bi-card-list"></i> Your Assigned Leads</h3>
+  <h3 class="text-primary"><i class="bi bi-calendar"></i> Your Assigned Leads by Date</h3>
 
-  {% if leads %}
-    <table class="table table-bordered table-striped mt-3 align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>Status</th>
-          <th>Update Status</th>
-          <th>Message & Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for lead in leads %}
-        <tr>
-          <td>{{ lead.name }}</td>
-          <td>{{ lead.email or '-' }}</td>
-          <td>{{ lead.phone }}</td>
-          <td>{{ lead.status }}</td>
-          <td>
-            <form method="POST" action="{{ url_for('update_lead_status') }}">
-              <input type="hidden" name="lead_id" value="{{ lead.id }}">
-              <div class="d-flex">
-                <select name="status_{{ lead.id }}" class="form-select form-select-sm me-2">
-                  <option value="Pending" {% if lead.status == 'Pending' %}selected{% endif %}>Pending</option>
-                  <option value="Interested" {% if lead.status == 'Interested' %}selected{% endif %}>Interested</option>
-                  <option value="Not Interested" {% if lead.status == 'Not Interested' %}selected{% endif %}>Not Interested</option>
-                  <option value="Talk Later" {% if lead.status == 'Talk Later' %}selected{% endif %}>Talk Later</option>
-                </select>
-                <button type="submit" class="btn btn-sm btn-primary">Update</button>
-              </div>
-            </form>
-          </td>
-          <td>
-            <button
-              class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
-              style="background-color: #25D366; border-color: #25D366;"
-              data-lead="{{ lead.id }}"
-              data-name="{{ lead.name }}"
-              data-email="{{ lead.email }}"
-              data-phone="{{ lead.phone }}"
-              title="Send WhatsApp or Email"
-            >
-              <i class="bi bi-whatsapp" style="font-size: 1.3em"></i>
-              <span class="d-none d-sm-inline">WhatsApp / Email</span>
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% else %}
-    <div class="alert alert-info mt-4">No leads assigned yet.</div>
-  {% endif %}
+  <!-- Date Picker and Export Button -->
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <div style="min-width: 260px;">
+      <label for="leadDatePicker" class="form-label">Select Date</label>
+      <input type="text" id="leadDatePicker" class="form-control" placeholder="Select a date" readonly />
+    </div>
+
+    <button id="exportInterestedBtn" class="btn btn-success mt-4" disabled>
+      <i class="bi bi-file-earmark-excel"></i> Export Interested Leads
+    </button>
+  </div>
+
+  <!-- Container for leads loaded by selected date -->
+  <div id="leadsByDateContainer">
+    <p class="text-muted">Please select a date to view assigned leads.</p>
+  </div>
 </div>
 
 <!-- Toast Notification -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
-  <div id="toast" class="toast align-items-center text-white bg-primary border-0" role="alert">
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+  <div id="toast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="polite" aria-atomic="true">
     <div class="d-flex">
-      <div class="toast-body" id="toast-body">Action completed.</div>
+      <div id="toast-body" class="toast-body">Action completed.</div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
     </div>
   </div>
@@ -75,35 +37,36 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title">Send Message to Lead</h5>
+        <h5 class="modal-title" id="messageModalLabel">Send Message to Lead</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <form id="modal-message-form" autocomplete="off">
-          <input type="hidden" id="modal-lead-id">
+          <input type="hidden" id="modal-lead-id" />
           <div class="mb-3">
             <label class="form-label">Message to Lead <span class="text-danger">*</span></label>
             <textarea id="messageToLead" class="form-control" rows="3" maxlength="500" required placeholder="Write message to send via WhatsApp or Email"></textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label">Note for Admin <small class="text-muted">(Optional, visible only to admin)</small></label>
+            <label class="form-label">
+              Note for Admin <small class="text-muted">(Optional, visible only to admin)</small>
+            </label>
             <textarea id="noteToAdmin" class="form-control" rows="2" maxlength="500" placeholder="This will only be visible to the admin"></textarea>
           </div>
           <div class="d-flex flex-column flex-sm-row justify-content-end gap-2">
-            <button type="button" class="btn btn-success d-flex align-items-center gap-1"
-                    style="background-color:#25D366; border-color:#25D366;" id="sendWhatsAppBtn">
-              <i class="bi bi-whatsapp" style="font-size:1.3em"></i>
-              WhatsApp
+            <button
+              type="button"
+              class="btn btn-success d-flex align-items-center gap-1"
+              style="background-color:#25D366; border-color:#25D366;"
+              id="sendWhatsAppBtn"
+            >
+              <i class="bi bi-whatsapp" style="font-size:1.3em"></i> WhatsApp
             </button>
-            <button type="button" class="btn btn-primary d-flex align-items-center gap-1"
-                    id="sendEmailBtn">
-              <i class="bi bi-envelope-fill" style="font-size:1.1em"></i>
-              Email
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-1" id="sendEmailBtn">
+              <i class="bi bi-envelope-fill" style="font-size:1.1em"></i> Email
             </button>
-            <button type="button" class="btn btn-warning d-flex align-items-center gap-1"
-                    id="sendNoteBtn">
-              <i class="bi bi-chat-left-text-fill"></i>
-              Send Note to Admin
+            <button type="button" class="btn btn-warning d-flex align-items-center gap-1" id="sendNoteBtn">
+              <i class="bi bi-chat-left-text-fill"></i> Send Note to Admin
             </button>
           </div>
         </form>
@@ -112,81 +75,241 @@
   </div>
 </div>
 
-<!-- JavaScript for Messaging Modal -->
+<!-- Include Flatpickr CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <script>
 let currentLead = {};
+let currentDate = null;
 
-document.querySelectorAll(".open-msg-modal").forEach(btn => {
-  btn.onclick = () => {
-    const modal = new bootstrap.Modal(document.getElementById("messageModal"));
-    currentLead = {
-      id: btn.dataset.lead,
-      email: btn.dataset.email,
-      phone: btn.dataset.phone
-    };
-    document.getElementById("modal-lead-id").value = currentLead.id;
-    document.getElementById("messageToLead").value = "";
-    document.getElementById("noteToAdmin").value = "";
-    modal.show();
+document.addEventListener("DOMContentLoaded", () => {
+  const datePicker = flatpickr("#leadDatePicker", {
+    dateFormat: "Y-m-d",
+    onChange: function(selectedDates, dateStr) {
+      if (dateStr) {
+        currentDate = dateStr;
+        loadLeadsForDate(dateStr);
+      }
+    }
+  });
+
+  const container = document.getElementById("leadsByDateContainer");
+  const exportBtn = document.getElementById("exportInterestedBtn");
+
+  async function loadLeadsForDate(dateStr) {
+    container.innerHTML = "<p>Loading leads...</p>";
+    exportBtn.disabled = true;
+
+    try {
+      const res = await fetch(`/agent-dashboard/leads-by-date?date=${dateStr}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        container.innerHTML = `<div class="alert alert-warning">${data.error || 'Failed to load leads.'}</div>`;
+        return;
+      }
+
+      if (data.leads.length === 0) {
+        container.innerHTML = `<div class="alert alert-info">No leads assigned on ${dateStr}.</div>`;
+        return;
+      }
+
+      const interestedCount = data.leads.filter(l => l.status === 'Interested').length;
+      exportBtn.disabled = interestedCount === 0;
+
+      // Build leads table
+      let html = `<table class="table table-bordered table-striped align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Update Status</th><th>Message & Actions</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+      data.leads.forEach(lead => {
+        html += `<tr data-lead-id="${lead.id}">
+          <td>${escapeHTML(lead.name)}</td>
+          <td>${escapeHTML(lead.email || "-")}</td>
+          <td>${escapeHTML(lead.phone || "-")}</td>
+          <td class="lead-status">${escapeHTML(lead.status || "N/A")}</td>
+          <td>
+            <div class="d-flex">
+              <select class="form-select form-select-sm me-2 status-select">
+                <option value="Pending" ${lead.status === "Pending" ? "selected" : ""}>Pending</option>
+                <option value="Interested" ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
+                <option value="Not Interested" ${lead.status === "Not Interested" ? "selected" : ""}>Not Interested</option>
+                <option value="Talk Later" ${lead.status === "Talk Later" ? "selected" : ""}>Talk Later</option>
+              </select>
+              <button class="btn btn-sm btn-primary update-status-btn">Update</button>
+            </div>
+          </td>
+          <td>
+            <button 
+              class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
+              style="background-color:#25D366; border-color:#25D366;"
+              data-lead="${lead.id}"
+              data-name="${escapeHTML(lead.name)}"
+              data-email="${escapeHTML(lead.email)}"
+              data-phone="${escapeHTML(lead.phone)}"
+              title="Send WhatsApp or Email"
+            >
+              <i class="bi bi-whatsapp" style="font-size: 1.3em;"></i>
+              <span class="d-none d-sm-inline">WhatsApp / Email</span>
+            </button>
+          </td>
+        </tr>`;
+      });
+
+      html += "</tbody></table>";
+      container.innerHTML = html;
+
+      addUpdateStatusListeners();
+      addMessageModalListeners();
+
+    } catch (err) {
+      container.innerHTML = `<div class="alert alert-danger">Error fetching leads.</div>`;
+      console.error(err);
+    }
+  }
+
+  function addUpdateStatusListeners() {
+    document.querySelectorAll(".update-status-btn").forEach(btn => {
+      btn.onclick = async () => {
+        const row = btn.closest("tr");
+        const leadId = row.dataset.leadId;
+        const selectElement = row.querySelector(".status-select");
+        const newStatus = selectElement.value;
+
+        try {
+          const res = await fetch("/agent-dashboard/update-lead-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lead_id: leadId, status: newStatus }),
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            row.querySelector(".lead-status").textContent = newStatus;
+            showToast("✅ Status updated.");
+
+            // Enable/disable export button according to interested leads count
+            const rows = container.querySelectorAll("tbody tr");
+            const interestedCount = [...rows].filter(r => {
+              return r.querySelector(".status-select").value === "Interested";
+            }).length;
+            exportBtn.disabled = interestedCount === 0;
+
+          } else {
+            showToast("❌ " + (data.error || "Failed to update status."));
+          }
+        } catch (error) {
+          showToast("❌ Error updating status.");
+          console.error(error);
+        }
+      };
+    });
+  }
+
+  function addMessageModalListeners() {
+    document.querySelectorAll(".open-msg-modal").forEach(btn => {
+      btn.onclick = () => {
+        const modal = new bootstrap.Modal(document.getElementById("messageModal"));
+        currentLead = {
+          id: btn.dataset.lead,
+          email: btn.dataset.email,
+          phone: btn.dataset.phone,
+          name: btn.dataset.name,
+        };
+        document.getElementById("modal-lead-id").value = currentLead.id;
+        document.getElementById("messageToLead").value = "";
+        document.getElementById("noteToAdmin").value = "";
+        modal.show();
+      };
+    });
+  }
+
+  // Download Excel file for interested leads on selected date
+  exportBtn.onclick = () => {
+    if (!currentDate) return;
+    window.open(`/agent-dashboard/export-interested-leads?date=${currentDate}`, "_blank");
+    showToast("✅ Excel download started.");
   };
+
+  // Messaging modal buttons
+  document.getElementById("sendWhatsAppBtn").onclick = () => {
+    const msg = document.getElementById("messageToLead").value.trim();
+    if (!msg) return showToast("⚠️ Message is required.");
+    if (!currentLead.phone) return showToast("❌ No WhatsApp number.");
+    window.open(`https://wa.me/${currentLead.phone}?text=${encodeURIComponent(msg)}`, "_blank");
+    showToast("✅ WhatsApp opened.");
+  };
+
+  document.getElementById("sendEmailBtn").onclick = async () => {
+    const msg = document.getElementById("messageToLead").value.trim();
+    const note = document.getElementById("noteToAdmin").value.trim();
+    if (!msg) return showToast("⚠️ Message required");
+    try {
+      const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: msg,
+          note_to_admin: note,
+          only_note: false,
+        }),
+      });
+      const data = await res.json();
+      showToast(data.success ? "✅ Email sent!" : "❌ " + data.error);
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Email send failed");
+    }
+  };
+
+  document.getElementById("sendNoteBtn").onclick = async () => {
+    const note = document.getElementById("noteToAdmin").value.trim();
+    if (!note) return showToast("⚠️ Please enter a note.");
+    try {
+      const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "",
+          note_to_admin: note,
+          only_note: true,
+        }),
+      });
+      const data = await res.json();
+      showToast(data.success ? "✅ Note sent to admin!" : "❌ " + data.error);
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Failed to submit note");
+    }
+  };
+
+  function showToast(message) {
+    const toastBody = document.getElementById("toast-body");
+    toastBody.textContent = message;
+    const toast = new bootstrap.Toast(document.getElementById("toast"), { delay: 3000 });
+    toast.show();
+  }
+
+  // Simple escape helper to prevent XSS in dynamic HTML insertion
+  function escapeHTML(text) {
+    if (!text) return "";
+    return text.replace(/[&<>"']/g, function (match) {
+      const escapeMap = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return escapeMap[match];
+    });
+  }
 });
-
-document.getElementById("sendWhatsAppBtn").onclick = () => {
-  const msg = document.getElementById("messageToLead").value.trim();
-  if (!msg) return showToast("⚠️ Message is required.");
-  if (!currentLead.phone) return showToast("❌ No WhatsApp number.");
-  window.open(`https://wa.me/${currentLead.phone}?text=${encodeURIComponent(msg)}`, "_blank");
-  showToast("✅ WhatsApp opened.");
-};
-
-document.getElementById("sendEmailBtn").onclick = async () => {
-  const msg = document.getElementById("messageToLead").value.trim();
-  const note = document.getElementById("noteToAdmin").value.trim();
-  if (!msg) return showToast("⚠️ Message required");
-  try {
-    const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: msg,
-        note_to_admin: note,
-        only_note: false
-      })
-    });
-    const data = await res.json();
-    showToast(data.success ? "✅ Email sent!" : "❌ " + data.error);
-  } catch (err) {
-    console.error(err);
-    showToast("❌ Email send failed");
-  }
-};
-
-document.getElementById("sendNoteBtn").onclick = async () => {
-  const note = document.getElementById("noteToAdmin").value.trim();
-  if (!note) return showToast("⚠️ Please enter a note.");
-  try {
-    const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '',
-        note_to_admin: note,
-        only_note: true
-      })
-    });
-    const data = await res.json();
-    showToast(data.success ? "✅ Note sent to admin!" : "❌ " + data.error);
-  } catch (err) {
-    console.error(err);
-    showToast("❌ Failed to submit note");
-  }
-};
-
-function showToast(message) {
-  document.getElementById("toast-body").textContent = message;
-  const toast = new bootstrap.Toast(document.getElementById("toast"), { delay: 3000 });
-  toast.show();
-}
 </script>
 
 {% endblock %}
