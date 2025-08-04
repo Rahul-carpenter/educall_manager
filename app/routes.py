@@ -18,6 +18,7 @@ from sqlalchemy import func
 import pandas as pd
 from io import BytesIO
 from flask import send_file
+from sqlalchemy import func
 
 #from app.utils import login_required
 '''@app.route('/create-admin')
@@ -396,7 +397,7 @@ def assign_leads(agent_id):
                 print("DEBUG Columns:", df.columns)
 
                 # Use the same assignment time for the whole batch
-                assignment_time = datetime.utcnow()
+                assignment_time = db.session.execute(func.now()).scalar()
 
                 for _, row in df.iterrows():
                     lead = Lead(

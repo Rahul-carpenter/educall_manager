@@ -1,5 +1,7 @@
 from app import db
 from datetime import datetime
+from sqlalchemy import func
+import pytz
 from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
@@ -19,8 +21,7 @@ class UploadedLeadFile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
     agent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    uploaded_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
 class Lead(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -32,8 +33,12 @@ class Lead(db.Model):
     course = db.Column(db.String(100))
     status = db.Column(db.String(50), nullable=True)
     note_to_admin = db.Column(db.Text, nullable=True) # 🆕 Add this line
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    assigned_at = db.Column(db.DateTime, nullable=True)  # Add this line
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(pytz.timezone("Asia/Kolkata")),  # Python-side default
+        server_default=func.now()  # DB-side default
+    )
+    assigned_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     agent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 

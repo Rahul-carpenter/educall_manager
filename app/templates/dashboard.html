@@ -65,7 +65,15 @@
                     {{ lead.status }}
                   </span>
                 </td>
-                <td><small class="text-muted">{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                <td>
+                  <small class="text-muted">
+                  {% if lead.created_at %}
+                    {{ lead.created_at.strftime('%d-%m-%Y %I:%M %p') }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </small>
+                </td>
               </tr>
             {% else %}
               <tr>
