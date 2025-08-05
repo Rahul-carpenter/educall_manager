@@ -19,6 +19,7 @@ import pandas as pd
 from io import BytesIO
 from flask import send_file
 from sqlalchemy import func
+from flask import current_app
 
 #from app.utils import login_required
 '''@app.route('/create-admin')
@@ -444,6 +445,8 @@ def update_lead_status_by_id(lead_id):
     flash("Lead status updated!", "success")
     return redirect(url_for('agent_dashboard'))
 
+
+
 @app.route('/agent-dashboard/update-lead-status', methods=['POST'])
 @login_required(role='agent')
 def agent_update_lead_status():
@@ -451,13 +454,57 @@ def agent_update_lead_status():
     lead_id = data.get('lead_id')
     new_status = data.get('status')
 
+    if not lead_id or new_status is None:
+        return jsonify({'success': False, 'error': 'Invalid input'}), 400
+
     lead = Lead.query.filter_by(id=lead_id, agent_id=session['user_id']).first()
     if not lead:
         return jsonify({'success': False, 'error': 'Lead not found or unauthorized'}), 404
 
     lead.status = new_status
     db.session.commit()
+
+    agent_id = session['user_id']
+    leads = Lead.query.filter_by(agent_id=agent_id).all()
+
+    # Check all leads have a non-empty status (not None or empty string)
+    all_completed = all(lead.status and lead.status.strip() != '' for lead in leads)
+
+    if all_completed:
+        # Count statuses
+        pending_count = sum(1 for lead in leads if lead.status.lower() == 'pending')
+        interested_count = sum(1 for lead in leads if lead.status.lower() == 'interested')
+        not_interested_count = sum(1 for lead in leads if lead.status.lower() == 'not interested')
+
+        agent = User.query.get(agent_id)
+        admin_email = current_app.config.get('ADMIN_EMAIL') or 'rc26022020@gmail.com'  # Update as needed
+        latest_created_at = max((lead.created_at for lead in leads if lead.created_at), default=None)
+        completed_date_str = latest_created_at.strftime('%Y-%m-%d %H:%M') if latest_created_at else "Unknown"
+        subject = f"Agent {agent.username} Completed All Leads"
+
+        body = (
+            f"Hello Admin,\n\n"
+            f"Agent {agent.username} has updated all assigned leads with statuses.\n"
+            f"Leads were completed on (latest lead creation date): {completed_date_str}\n\n"
+            f"Summary:\n"
+            f"- Pending: {pending_count}\n"
+            f"- Interested: {interested_count}\n"
+            f"- Not Interested: {not_interested_count}\n\n"
+            f"Please review and assign more leads as needed.\n\n"
+            f"Regards,\n"
+            f"EduCall Manager"
+        )
+
+        try:
+            msg = Message(subject=subject, recipients=[admin_email])
+            msg.body = body
+            mail.send(msg)
+            print(f"✅ Notification email sent to admin ({admin_email}) regarding agent {agent.username}")
+        except Exception as e:
+            print(f"❌ Failed to send admin notification email: {e}")
+
     return jsonify({'success': True, 'message': 'Status updated successfully'})
+
 
 
 
@@ -524,14 +571,17 @@ def index():
                 "interested": sum(1 for lead in leads if lead.status == "Interested"),
                 "not_interested": sum(1 for lead in leads if lead.status == "Not Interested"),
                 "talk_later": sum(1 for lead in leads if lead.status == "Talk to Later"),
+                "pending": sum(1 for lead in leads if lead.status == "Pending"),
             }
             leads_by_agent[agent.username] = summary
 
         return render_template("admin_dashboard.html", leads_by_agent=leads_by_agent)
 
-    # Agent view
+    # Add this to handle other roles (e.g., agents)
     leads = Lead.query.filter_by(agent_id=session["user_id"]).order_by(Lead.created_at.desc()).all()
     return render_template("dashboard.html", leads=leads)
+
+
 
 
 @app.route("/add-lead", methods=["GET", "POST"])

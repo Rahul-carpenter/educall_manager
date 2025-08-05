@@ -27,11 +27,20 @@
       <div class="card shadow-sm">
         <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between flex-wrap">
           <strong>{{ agent }}</strong>
-          <div class="d-flex flex-wrap gap-2 mt-2 mt-sm-0">
+          <div class="d-flex flex-wrap gap-2 mt-2 mt-sm-0 align-items-center">
             <span class="badge bg-light text-dark">Total: {{ summary.total }}</span>
             <span class="badge bg-success">Interested: {{ summary.interested }}</span>
             <span class="badge bg-danger">Not Interested: {{ summary.not_interested }}</span>
+            <span class="badge bg-secondary text-white">Pending: {{ summary.pending }}</span>
             <span class="badge bg-warning text-dark">Talk to Later: {{ summary.talk_later }}</span>
+
+            <!-- Show Notes / Show All buttons -->
+            <button class="btn btn-warning btn-sm ms-3" onclick="toggleNotes('{{ agent }}')" aria-label="Show only leads with notes for {{ agent }}">
+              Show Notes
+            </button>
+            <button class="btn btn-secondary btn-sm ms-2" onclick="showAll('{{ agent }}')" aria-label="Show all leads for {{ agent }}" style="display:none;" id="showAllBtn_{{ agent }}">
+              Show All
+            </button>
           </div>
         </div>
         <div class="card-body">
@@ -40,6 +49,7 @@
             <table class="table table-bordered table-striped align-middle mb-0">
               <thead class="table-light">
                 <tr>
+                  <th>S.No</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Phone</th>
@@ -53,7 +63,8 @@
               </thead>
               <tbody>
                 {% for lead in summary.leads %}
-                <tr>
+                <tr class="{% if lead.note_to_admin %}lead-with-note{% else %}lead-no-note{% endif %}">
+                  <td>{{ loop.index }}</td>
                   <td>{{ lead.name }}</td>
                   <td>
                     {{ lead.email or '-' }}
@@ -67,12 +78,12 @@
                   <td>{{ lead.course or '-' }}</td>
                   <td>
                     <span class="badge
-                    {% if lead.status == 'Interested' %} bg-success
-                    {% elif lead.status == 'Not Interested' %} bg-danger
-                    {% elif lead.status == 'Talk to Later' %} bg-warning text-dark
-                    {% else %} bg-secondary
-                    {% endif %}">
-                    {{ lead.status or 'N/A' }}
+                      {% if lead.status == 'Interested' %} bg-success
+                      {% elif lead.status == 'Not Interested' %} bg-danger
+                      {% elif lead.status == 'Talk to Later' %} bg-warning text-dark
+                      {% else %} bg-secondary
+                      {% endif %}">
+                      {{ lead.status or 'N/A' }}
                     </span>
                   </td>
                   <td>{{ lead.created_at.strftime('%Y-%m-%d %H:%M') if lead.created_at else '-' }}</td>
@@ -163,7 +174,6 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-
     // Toggle agent lead display
     document.querySelectorAll(".agent-toggle").forEach(toggle => {
       toggle.addEventListener("change", function() {
@@ -234,8 +244,39 @@
         showToast('❌ Error sending bulk emails.');
       }
     });
+  });
 
-  }); // End DOMContentLoaded
+  // Show Notes / Show All buttons functionality
+  function toggleNotes(agent) {
+    const section = document.getElementById('section_' + agent);
+    if (!section) return;
+
+    section.querySelectorAll('tbody tr.lead-no-note').forEach(row => row.style.display = 'none');
+    section.querySelectorAll('tbody tr.lead-with-note').forEach(row => row.style.display = '');
+
+    // Hide Show Notes button, show Show All button
+    const showNotesBtn = section.querySelector('.btn-warning');
+    const showAllBtn = document.getElementById('showAllBtn_' + agent);
+    if (showNotesBtn && showAllBtn) {
+      showNotesBtn.style.display = 'none';
+      showAllBtn.style.display = 'inline-block';
+    }
+  }
+
+  function showAll(agent) {
+    const section = document.getElementById('section_' + agent);
+    if (!section) return;
+
+    section.querySelectorAll('tbody tr').forEach(row => row.style.display = '');
+
+    // Show Show Notes button, hide Show All button
+    const showNotesBtn = section.querySelector('.btn-warning');
+    const showAllBtn = document.getElementById('showAllBtn_' + agent);
+    if (showNotesBtn && showAllBtn) {
+      showNotesBtn.style.display = 'inline-block';
+      showAllBtn.style.display = 'none';
+    }
+  }
 
   // Toast helper
   function showToast(message) {

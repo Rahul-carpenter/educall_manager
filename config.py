@@ -29,3 +29,4 @@ class Config:
     MAIL_USERNAME = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", MAIL_USERNAME)
+    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "rc26022020@gmail.com")

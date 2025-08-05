@@ -17,7 +17,7 @@
   </div>
 
   <!-- Container for leads loaded by selected date -->
-  <div id="leadsByDateContainer">
+  <div class="table-responsive" id="leadsByDateContainer">
     <p class="text-muted">Please select a date to view assigned leads.</p>
   </div>
 </div>
@@ -118,17 +118,24 @@ document.addEventListener("DOMContentLoaded", () => {
       const interestedCount = data.leads.filter(l => l.status === 'Interested').length;
       exportBtn.disabled = interestedCount === 0;
 
-      // Build leads table
-      let html = `<table class="table table-bordered table-striped align-middle">
-        <thead class="table-light">
+      // Build leads table WITH S.No column
+      let html = `<table class="table table-bordered table-hover table-striped align-middle">
+        <thead class="table-primary text-center sticky-top" style="z-index:1;">
           <tr>
-            <th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Update Status</th><th>Message & Actions</th>
+            <th style="width:60px;">S.No</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Update Status</th>
+            <th>Message & Actions</th>
           </tr>
         </thead>
         <tbody>`;
 
-      data.leads.forEach(lead => {
+      data.leads.forEach((lead, i) => {
         html += `<tr data-lead-id="${lead.id}">
+          <td class="fw-bold text-center text-secondary-emphasis">${i + 1}</td>
           <td>${escapeHTML(lead.name)}</td>
           <td>${escapeHTML(lead.email || "-")}</td>
           <td>${escapeHTML(lead.phone || "-")}</td>
@@ -199,7 +206,6 @@ document.addEventListener("DOMContentLoaded", () => {
               return r.querySelector(".status-select").value === "Interested";
             }).length;
             exportBtn.disabled = interestedCount === 0;
-
           } else {
             showToast("❌ " + (data.error || "Failed to update status."));
           }
@@ -229,14 +235,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Download Excel file for interested leads on selected date
   exportBtn.onclick = () => {
     if (!currentDate) return;
     window.open(`/agent-dashboard/export-interested-leads?date=${currentDate}`, "_blank");
     showToast("✅ Excel download started.");
   };
 
-  // Messaging modal buttons
+  // Messaging modal AJAX handlers remain unchanged
   document.getElementById("sendWhatsAppBtn").onclick = () => {
     const msg = document.getElementById("messageToLead").value.trim();
     if (!msg) return showToast("⚠️ Message is required.");
@@ -244,7 +249,6 @@ document.addEventListener("DOMContentLoaded", () => {
     window.open(`https://wa.me/${currentLead.phone}?text=${encodeURIComponent(msg)}`, "_blank");
     showToast("✅ WhatsApp opened.");
   };
-
   document.getElementById("sendEmailBtn").onclick = async () => {
     const msg = document.getElementById("messageToLead").value.trim();
     const note = document.getElementById("noteToAdmin").value.trim();
@@ -256,7 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({
           message: msg,
           note_to_admin: note,
-          only_note: false,
+          only_note: false
         }),
       });
       const data = await res.json();
@@ -266,7 +270,6 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("❌ Email send failed");
     }
   };
-
   document.getElementById("sendNoteBtn").onclick = async () => {
     const note = document.getElementById("noteToAdmin").value.trim();
     if (!note) return showToast("⚠️ Please enter a note.");
@@ -277,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({
           message: "",
           note_to_admin: note,
-          only_note: true,
+          only_note: true
         }),
       });
       const data = await res.json();
@@ -295,7 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
     toast.show();
   }
 
-  // Simple escape helper to prevent XSS in dynamic HTML insertion
   function escapeHTML(text) {
     if (!text) return "";
     return text.replace(/[&<>"']/g, function (match) {
