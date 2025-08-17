@@ -37,7 +37,7 @@ def create_admin():
     db.session.add(new_user)
     db.session.commit()
 
-    return f"Admin user '{username}' created successfully!"'''
+    return f"Admin user '{username}' created successfully!" '''
 
 
 def login_required(role=None):
