@@ -1,23 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-
 <div class="container mt-4">
   <h3 class="text-primary"><i class="bi bi-calendar"></i> Your Assigned Leads by Date</h3>
-
   <!-- Date Picker and Export Button -->
   <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
     <div style="min-width: 260px;">
       <label for="leadDatePicker" class="form-label">Select Date</label>
       <input type="text" id="leadDatePicker" class="form-control" placeholder="Select a date" readonly />
     </div>
-
     <button id="exportInterestedBtn" class="btn btn-success mt-4" disabled>
       <i class="bi bi-file-earmark-excel"></i> Export Interested Leads
     </button>
   </div>
 
-  <!-- Container for leads loaded by selected date -->
-  <div class="table-responsive" id="leadsByDateContainer">
+  <!-- Container for leads: desktop table & mobile cards -->
+  <div id="leadsByDateContainer">
     <p class="text-muted">Please select a date to view assigned leads.</p>
   </div>
 </div>
@@ -48,18 +45,11 @@
             <textarea id="messageToLead" class="form-control" rows="3" maxlength="500" required placeholder="Write message to send via WhatsApp or Email"></textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label">
-              Note for Admin <small class="text-muted">(Optional, visible only to admin)</small>
-            </label>
+            <label class="form-label">Note for Admin <small class="text-muted">(Optional, visible only to admin)</small></label>
             <textarea id="noteToAdmin" class="form-control" rows="2" maxlength="500" placeholder="This will only be visible to the admin"></textarea>
           </div>
           <div class="d-flex flex-column flex-sm-row justify-content-end gap-2">
-            <button
-              type="button"
-              class="btn btn-success d-flex align-items-center gap-1"
-              style="background-color:#25D366; border-color:#25D366;"
-              id="sendWhatsAppBtn"
-            >
+            <button type="button" class="btn btn-success d-flex align-items-center gap-1" style="background-color:#25D366; border-color:#25D366;" id="sendWhatsAppBtn">
               <i class="bi bi-whatsapp" style="font-size:1.3em"></i> WhatsApp
             </button>
             <button type="button" class="btn btn-primary d-flex align-items-center gap-1" id="sendEmailBtn">
@@ -79,6 +69,18 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
+<style>
+  /* Hide table on small screens, show cards instead */
+  @media (max-width: 768px) {
+    .desktop-table { display: none; }
+    .mobile-card { display: block; }
+  }
+  @media (min-width: 769px) {
+    .desktop-table { display: block; }
+    .mobile-card { display: none; }
+  }
+</style>
+
 <script>
 let currentLead = {};
 let currentDate = null;
@@ -86,7 +88,7 @@ let currentDate = null;
 document.addEventListener("DOMContentLoaded", () => {
   const datePicker = flatpickr("#leadDatePicker", {
     dateFormat: "Y-m-d",
-    onChange: function(selectedDates, dateStr) {
+    onChange: (selectedDates, dateStr) => {
       if (dateStr) {
         currentDate = dateStr;
         loadLeadsForDate(dateStr);
@@ -100,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadLeadsForDate(dateStr) {
     container.innerHTML = "<p>Loading leads...</p>";
     exportBtn.disabled = true;
-
     try {
       const res = await fetch(`/agent-dashboard/leads-by-date?date=${dateStr}`);
       const data = await res.json();
@@ -109,7 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
         container.innerHTML = `<div class="alert alert-warning">${data.error || 'Failed to load leads.'}</div>`;
         return;
       }
-
       if (data.leads.length === 0) {
         container.innerHTML = `<div class="alert alert-info">No leads assigned on ${dateStr}.</div>`;
         return;
@@ -118,8 +118,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const interestedCount = data.leads.filter(l => l.status === 'Interested').length;
       exportBtn.disabled = interestedCount === 0;
 
-      // Build leads table WITH S.No column
-      let html = `<table class="table table-bordered table-hover table-striped align-middle">
+      // Desktop table view
+      let desktopHtml = `<div class="desktop-table"><table class="table table-bordered table-hover table-striped align-middle">
         <thead class="table-primary text-center sticky-top" style="z-index:1;">
           <tr>
             <th style="width:60px;">S.No</th>
@@ -133,8 +133,12 @@ document.addEventListener("DOMContentLoaded", () => {
         </thead>
         <tbody>`;
 
+      // Mobile card view
+      let mobileHtml = `<div class="mobile-card">`;
+
       data.leads.forEach((lead, i) => {
-        html += `<tr data-lead-id="${lead.id}">
+        // Desktop table row
+        desktopHtml += `<tr data-lead-id="${lead.id}">
           <td class="fw-bold text-center text-secondary-emphasis">${i + 1}</td>
           <td>${escapeHTML(lead.name)}</td>
           <td>${escapeHTML(lead.email || "-")}</td>
@@ -152,28 +156,65 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </td>
           <td>
-            <button 
-              class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
-              style="background-color:#25D366; border-color:#25D366;"
-              data-lead="${lead.id}"
-              data-name="${escapeHTML(lead.name)}"
-              data-email="${escapeHTML(lead.email)}"
-              data-phone="${escapeHTML(lead.phone)}"
-              title="Send WhatsApp or Email"
-            >
-              <i class="bi bi-whatsapp" style="font-size: 1.3em;"></i>
-              <span class="d-none d-sm-inline">WhatsApp / Email</span>
-            </button>
+            <div class="d-flex flex-wrap gap-1">
+              <button
+                class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
+                style="background-color:#25D366; border-color:#25D366;"
+                data-lead="${lead.id}"
+                data-name="${escapeHTML(lead.name)}"
+                data-email="${escapeHTML(lead.email)}"
+                data-phone="${escapeHTML(lead.phone)}"
+                title="Send WhatsApp or Email"
+              >
+                <i class="bi bi-whatsapp" style="font-size: 1.3em;"></i>
+                <span class="d-none d-sm-inline">WhatsApp / Email</span>
+              </button>
+              ${lead.phone ? `<a href="tel:${lead.phone}"
+                class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
+                title="Call Lead">
+                  <i class="bi bi-telephone-fill"></i><span class="d-none d-sm-inline">Call</span>
+                </a>` : ""}
+            </div>
           </td>
         </tr>`;
+
+        // Mobile card
+        mobileHtml += `<div class="card mb-2" data-lead-id="${lead.id}">
+          <div class="card-body">
+            <h5 class="card-title">${escapeHTML(lead.name)}</h5>
+            <p class="card-text">
+              <i class="bi bi-envelope"></i> ${escapeHTML(lead.email || "-")}<br>
+              <i class="bi bi-telephone"></i> ${escapeHTML(lead.phone || "-")}
+            </p>
+            <div class="mb-2">
+              <label>Status:</label>
+              <select class="form-select form-select-sm status-select">
+                <option value="Pending" ${lead.status === "Pending" ? "selected" : ""}>Pending</option>
+                <option value="Interested" ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
+                <option value="Not Interested" ${lead.status === "Not Interested" ? "selected" : ""}>Not Interested</option>
+                <option value="Talk Later" ${lead.status === "Talk Later" ? "selected" : ""}>Talk Later</option>
+              </select>
+              <button class="btn btn-primary btn-sm mt-1 update-status-btn">Update</button>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              <button class="btn btn-success flex-grow-1 open-msg-modal"
+                data-lead="${lead.id}" data-name="${escapeHTML(lead.name)}"
+                data-email="${escapeHTML(lead.email)}" data-phone="${escapeHTML(lead.phone)}">
+                <i class="bi bi-whatsapp"></i> WhatsApp/Email
+              </button>
+              ${lead.phone ? `<a href="tel:${lead.phone}" class="btn btn-outline-primary flex-grow-1">
+                <i class="bi bi-telephone-fill"></i> Call</a>` : ""}
+            </div>
+          </div>
+        </div>`;
       });
 
-      html += "</tbody></table>";
-      container.innerHTML = html;
+      desktopHtml += "</tbody></table></div>";
+      mobileHtml += "</div>";
+      container.innerHTML = desktopHtml + mobileHtml;
 
       addUpdateStatusListeners();
       addMessageModalListeners();
-
     } catch (err) {
       container.innerHTML = `<div class="alert alert-danger">Error fetching leads.</div>`;
       console.error(err);
@@ -183,11 +224,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function addUpdateStatusListeners() {
     document.querySelectorAll(".update-status-btn").forEach(btn => {
       btn.onclick = async () => {
-        const row = btn.closest("tr");
+        const row = btn.closest("[data-lead-id]");
         const leadId = row.dataset.leadId;
         const selectElement = row.querySelector(".status-select");
         const newStatus = selectElement.value;
-
         try {
           const res = await fetch("/agent-dashboard/update-lead-status", {
             method: "POST",
@@ -195,23 +235,15 @@ document.addEventListener("DOMContentLoaded", () => {
             body: JSON.stringify({ lead_id: leadId, status: newStatus }),
           });
           const data = await res.json();
-
           if (data.success) {
-            row.querySelector(".lead-status").textContent = newStatus;
+            if (row.querySelector(".lead-status")) row.querySelector(".lead-status").textContent = newStatus;
             showToast("✅ Status updated.");
-
-            // Enable/disable export button according to interested leads count
-            const rows = container.querySelectorAll("tbody tr");
-            const interestedCount = [...rows].filter(r => {
-              return r.querySelector(".status-select").value === "Interested";
-            }).length;
-            exportBtn.disabled = interestedCount === 0;
           } else {
-            showToast("❌ " + (data.error || "Failed to update status."));
+            showToast("❌ Update failed.");
           }
-        } catch (error) {
+        } catch (e) {
           showToast("❌ Error updating status.");
-          console.error(error);
+          console.error(e);
         }
       };
     });
@@ -241,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast("✅ Excel download started.");
   };
 
-  // Messaging modal AJAX handlers remain unchanged
+  // Messaging modal handlers
   document.getElementById("sendWhatsAppBtn").onclick = () => {
     const msg = document.getElementById("messageToLead").value.trim();
     if (!msg) return showToast("⚠️ Message is required.");
@@ -249,6 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.open(`https://wa.me/${currentLead.phone}?text=${encodeURIComponent(msg)}`, "_blank");
     showToast("✅ WhatsApp opened.");
   };
+
   document.getElementById("sendEmailBtn").onclick = async () => {
     const msg = document.getElementById("messageToLead").value.trim();
     const note = document.getElementById("noteToAdmin").value.trim();
@@ -270,6 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("❌ Email send failed");
     }
   };
+
   document.getElementById("sendNoteBtn").onclick = async () => {
     const note = document.getElementById("noteToAdmin").value.trim();
     if (!note) return showToast("⚠️ Please enter a note.");
@@ -291,6 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+
   function showToast(message) {
     const toastBody = document.getElementById("toast-body");
     toastBody.textContent = message;
@@ -298,20 +333,17 @@ document.addEventListener("DOMContentLoaded", () => {
     toast.show();
   }
 
+
   function escapeHTML(text) {
     if (!text) return "";
-    return text.replace(/[&<>"']/g, function (match) {
-      const escapeMap = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
-      return escapeMap[match];
-    });
+    return text.replace(/[&<>"']/g, match => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[match]));
   }
 });
 </script>
-
 {% endblock %}
