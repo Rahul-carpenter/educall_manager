@@ -1,19 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-  <h3 class="text-primary"><i class="bi bi-calendar"></i> Your Assigned Leads by Date</h3>
-  <!-- Date Picker and Export Button -->
+  <h3 class="mb-4 text-primary"><i class="bi bi-calendar"></i> Your Assigned Leads by Date</h3>
+  <!-- Controls: Date picker, export and filter buttons -->
   <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
     <div style="min-width: 260px;">
-      <label for="leadDatePicker" class="form-label">Select Date</label>
-      <input type="text" id="leadDatePicker" class="form-control" placeholder="Select a date" readonly />
+      <label for="leadDatePicker" class="form-label">Select a date</label>
+      <input type="text" id="leadDatePicker" class="form-control" placeholder="Select a date" />
     </div>
     <button id="exportInterestedBtn" class="btn btn-success mt-4" disabled>
       <i class="bi bi-file-earmark-excel"></i> Export Interested Leads
     </button>
+    <button id="showNoStatusBtn" class="btn btn-warning mt-4">
+      Show Leads Without Status
+    </button>
+    <button id="resetFilterBtn" class="btn btn-secondary mt-4" style="display:none;">
+      Reset Filter
+    </button>
   </div>
-
-  <!-- Container for leads: desktop table & mobile cards -->
+  <!-- Container for leads -->
   <div id="leadsByDateContainer">
     <p class="text-muted">Please select a date to view assigned leads.</p>
   </div>
@@ -31,7 +36,7 @@
 
 <!-- Modal: Send Message -->
 <div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title" id="messageModalLabel">Send Message to Lead</h5>
@@ -65,12 +70,19 @@
   </div>
 </div>
 
-<!-- Include Flatpickr CSS & JS -->
+<!-- Flatpickr CSS & JS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <style>
-  /* Hide table on small screens, show cards instead */
+  /* Highlight assigned dates */
+  .assigned-lead-day {
+    background: #ffe066 !important;
+    border-radius: 50%;
+    color: #333 !important;
+    border: 2px solid #faa307 !important;
+  }
+  /* Responsive table and cards */
   @media (max-width: 768px) {
     .desktop-table { display: none; }
     .mobile-card { display: block; }
@@ -84,61 +96,103 @@
 <script>
 let currentLead = {};
 let currentDate = null;
+let assignedDates = [];
 
-document.addEventListener("DOMContentLoaded", () => {
-  const datePicker = flatpickr("#leadDatePicker", {
+function escapeHTML(text) {
+  if (!text) return "";
+  return text.replace(/[&<>"']/g, match => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[match]));
+}
+
+function showToast(message) {
+  const toastBody = document.getElementById("toast-body");
+  toastBody.textContent = message;
+  const toast = new bootstrap.Toast(document.getElementById("toast"), { delay: 3000 });
+  toast.show();
+}
+
+async function fetchAssignedDates() {
+  try {
+    let res = await fetch('/agent-dashboard/assigned-dates');
+    let data = await res.json();
+    if (data.success) {
+      assignedDates = data.assigned_dates || [];
+      initCalendar();
+    } else {
+      console.error("Failed to load assigned dates");
+      initCalendar();
+    }
+  } catch (e) {
+    console.error("Error fetching assigned dates", e);
+    initCalendar();
+  }
+}
+
+function initCalendar() {
+  flatpickr("#leadDatePicker", {
     dateFormat: "Y-m-d",
-    onChange: (selectedDates, dateStr) => {
-      if (dateStr) {
-        currentDate = dateStr;
-        loadLeadsForDate(dateStr);
+    allowInput: true,
+    clickOpens: true,
+    onDayCreate: (dObj, dStr, fp, dayElem) => {
+      if (assignedDates.includes(fp.formatDate(dayElem.dateObj, "Y-m-d"))) {
+        dayElem.classList.add("assigned-lead-day");
       }
+    },
+    onChange: (selectedDates, dateStr, instance) => {
+      instance.input.value = dateStr;
+      currentDate = dateStr;
+      loadLeadsForDate(dateStr);
     }
   });
+}
 
+async function loadLeadsForDate(dateStr) {
   const container = document.getElementById("leadsByDateContainer");
   const exportBtn = document.getElementById("exportInterestedBtn");
+  container.innerHTML = "<p>Loading leads...</p>";
+  exportBtn.disabled = true;
 
-  async function loadLeadsForDate(dateStr) {
-    container.innerHTML = "<p>Loading leads...</p>";
-    exportBtn.disabled = true;
-    try {
-      const res = await fetch(`/agent-dashboard/leads-by-date?date=${dateStr}`);
-      const data = await res.json();
+  try {
+    let res = await fetch(`/agent-dashboard/leads-by-date?date=${dateStr}`);
+    let data = await res.json();
 
-      if (!data.success) {
-        container.innerHTML = `<div class="alert alert-warning">${data.error || 'Failed to load leads.'}</div>`;
-        return;
-      }
-      if (data.leads.length === 0) {
-        container.innerHTML = `<div class="alert alert-info">No leads assigned on ${dateStr}.</div>`;
-        return;
-      }
+    if (!data.success) {
+      container.innerHTML = `<div class="alert alert-warning">${data.error || "Failed to load leads."}</div>`;
+      return;
+    }
 
-      const interestedCount = data.leads.filter(l => l.status === 'Interested').length;
-      exportBtn.disabled = interestedCount === 0;
+    if (data.leads.length === 0) {
+      container.innerHTML = `<p>No leads assigned on ${dateStr}.</p>`;
+      return;
+    }
 
-      // Desktop table view
-      let desktopHtml = `<div class="desktop-table"><table class="table table-bordered table-hover table-striped align-middle">
-        <thead class="table-primary text-center sticky-top" style="z-index:1;">
-          <tr>
-            <th style="width:60px;">S.No</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Status</th>
-            <th>Update Status</th>
-            <th>Message & Actions</th>
-          </tr>
-        </thead>
-        <tbody>`;
+    let interestedCount = data.leads.filter(l => l.status === "Interested").length;
+    exportBtn.disabled = interestedCount === 0;
 
-      // Mobile card view
-      let mobileHtml = `<div class="mobile-card">`;
+    let desktopHtml = `
+      <div class="desktop-table"><table class="table table-bordered table-hover table-striped align-middle">
+      <thead class="table-primary text-center sticky-top" style="z-index:1;">
+        <tr>
+          <th style="width:60px;">S.No</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Update Status</th>
+          <th>Message & Actions</th>
+        </tr>
+      </thead>
+      <tbody>`;
 
-      data.leads.forEach((lead, i) => {
-        // Desktop table row
-        desktopHtml += `<tr data-lead-id="${lead.id}">
+    let mobileHtml = `<div class="mobile-card">`;
+
+    data.leads.forEach((lead, i) => {
+      desktopHtml += `<tr data-lead-id="${lead.id}">
           <td class="fw-bold text-center text-secondary-emphasis">${i + 1}</td>
           <td>${escapeHTML(lead.name)}</td>
           <td>${escapeHTML(lead.email || "-")}</td>
@@ -157,29 +211,20 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
           <td>
             <div class="d-flex flex-wrap gap-1">
-              <button
-                class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
+              <button class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
                 style="background-color:#25D366; border-color:#25D366;"
-                data-lead="${lead.id}"
-                data-name="${escapeHTML(lead.name)}"
-                data-email="${escapeHTML(lead.email)}"
-                data-phone="${escapeHTML(lead.phone)}"
-                title="Send WhatsApp or Email"
-              >
+                data-lead="${lead.id}" data-name="${escapeHTML(lead.name)}"
+                data-email="${escapeHTML(lead.email)}" data-phone="${escapeHTML(lead.phone)}"
+                title="Send WhatsApp or Email">
                 <i class="bi bi-whatsapp" style="font-size: 1.3em;"></i>
                 <span class="d-none d-sm-inline">WhatsApp / Email</span>
               </button>
-              ${lead.phone ? `<a href="tel:${lead.phone}"
-                class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
-                title="Call Lead">
-                  <i class="bi bi-telephone-fill"></i><span class="d-none d-sm-inline">Call</span>
-                </a>` : ""}
+              ${lead.phone ? `<a href="tel:${lead.phone}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" title="Call Lead"><i class="bi bi-telephone-fill"></i><span class="d-none d-sm-inline">Call</span></a>` : ""}
             </div>
           </td>
         </tr>`;
 
-        // Mobile card
-        mobileHtml += `<div class="card mb-2" data-lead-id="${lead.id}">
+      mobileHtml += `<div class="card mb-2" data-lead-id="${lead.id}">
           <div class="card-body">
             <h5 class="card-title">${escapeHTML(lead.name)}</h5>
             <p class="card-text">
@@ -202,78 +247,81 @@ document.addEventListener("DOMContentLoaded", () => {
                 data-email="${escapeHTML(lead.email)}" data-phone="${escapeHTML(lead.phone)}">
                 <i class="bi bi-whatsapp"></i> WhatsApp/Email
               </button>
-              ${lead.phone ? `<a href="tel:${lead.phone}" class="btn btn-outline-primary flex-grow-1">
-                <i class="bi bi-telephone-fill"></i> Call</a>` : ""}
+              ${lead.phone ? `<a href="tel:${lead.phone}" class="btn btn-outline-primary flex-grow-1"><i class="bi bi-telephone-fill"></i> Call</a>` : ""}
             </div>
           </div>
         </div>`;
-      });
+    });
 
-      desktopHtml += "</tbody></table></div>";
-      mobileHtml += "</div>";
-      container.innerHTML = desktopHtml + mobileHtml;
+    desktopHtml += "</tbody></table></div>";
+    mobileHtml += "</div>";
 
-      addUpdateStatusListeners();
-      addMessageModalListeners();
-    } catch (err) {
-      container.innerHTML = `<div class="alert alert-danger">Error fetching leads.</div>`;
-      console.error(err);
-    }
+    container.innerHTML = desktopHtml + mobileHtml;
+
+    addUpdateStatusListeners();
+    addMessageModalListeners();
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-danger">Error fetching leads.</div>`;
+    console.error(err);
   }
+}
 
-  function addUpdateStatusListeners() {
-    document.querySelectorAll(".update-status-btn").forEach(btn => {
-      btn.onclick = async () => {
-        const row = btn.closest("[data-lead-id]");
-        const leadId = row.dataset.leadId;
-        const selectElement = row.querySelector(".status-select");
-        const newStatus = selectElement.value;
-        try {
-          const res = await fetch("/agent-dashboard/update-lead-status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lead_id: leadId, status: newStatus }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            if (row.querySelector(".lead-status")) row.querySelector(".lead-status").textContent = newStatus;
-            showToast("✅ Status updated.");
-          } else {
-            showToast("❌ Update failed.");
-          }
-        } catch (e) {
-          showToast("❌ Error updating status.");
-          console.error(e);
+function addUpdateStatusListeners() {
+  document.querySelectorAll(".update-status-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const row = btn.closest("[data-lead-id]");
+      const leadId = row.dataset.leadId;
+      const selectElement = row.querySelector(".status-select");
+      const newStatus = selectElement.value;
+      try {
+        const res = await fetch("/agent-dashboard/update-lead-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lead_id: leadId, status: newStatus }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (row.querySelector(".lead-status")) row.querySelector(".lead-status").textContent = newStatus;
+          showToast("✅ Status updated.");
+        } else {
+          showToast("❌ Update failed.");
         }
-      };
-    });
-  }
+      } catch (e) {
+        showToast("❌ Error updating status.");
+        console.error(e);
+      }
+    };
+  });
+}
 
-  function addMessageModalListeners() {
-    document.querySelectorAll(".open-msg-modal").forEach(btn => {
-      btn.onclick = () => {
-        const modal = new bootstrap.Modal(document.getElementById("messageModal"));
-        currentLead = {
-          id: btn.dataset.lead,
-          email: btn.dataset.email,
-          phone: btn.dataset.phone,
-          name: btn.dataset.name,
-        };
-        document.getElementById("modal-lead-id").value = currentLead.id;
-        document.getElementById("messageToLead").value = "";
-        document.getElementById("noteToAdmin").value = "";
-        modal.show();
+function addMessageModalListeners() {
+  document.querySelectorAll(".open-msg-modal").forEach(btn => {
+    btn.onclick = () => {
+      const modal = new bootstrap.Modal(document.getElementById("messageModal"));
+      currentLead = {
+        id: btn.dataset.lead,
+        email: btn.dataset.email,
+        phone: btn.dataset.phone,
+        name: btn.dataset.name,
       };
-    });
-  }
+      document.getElementById("modal-lead-id").value = currentLead.id;
+      document.getElementById("messageToLead").value = "";
+      document.getElementById("noteToAdmin").value = "";
+      modal.show();
+    };
+  });
+}
 
+document.addEventListener("DOMContentLoaded", () => {
+  fetchAssignedDates();
+
+  const exportBtn = document.getElementById("exportInterestedBtn");
   exportBtn.onclick = () => {
     if (!currentDate) return;
     window.open(`/agent-dashboard/export-interested-leads?date=${currentDate}`, "_blank");
     showToast("✅ Excel download started.");
   };
 
-  // Messaging modal handlers
   document.getElementById("sendWhatsAppBtn").onclick = () => {
     const msg = document.getElementById("messageToLead").value.trim();
     if (!msg) return showToast("⚠️ Message is required.");
@@ -293,7 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({
           message: msg,
           note_to_admin: note,
-          only_note: false
+          only_note: false,
         }),
       });
       const data = await res.json();
@@ -314,7 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({
           message: "",
           note_to_admin: note,
-          only_note: true
+          only_note: true,
         }),
       });
       const data = await res.json();
@@ -325,25 +373,37 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  document.getElementById("showNoStatusBtn").onclick = () => {
+    const container = document.getElementById("leadsByDateContainer");
+    const rows = container.querySelectorAll("tbody tr");
+    if (!rows.length) {
+      showToast("No leads to filter.");
+      return;
+    }
+    rows.forEach(row => {
+      const statusCell = row.querySelector(".lead-status");
+      const statusText = statusCell ? statusCell.textContent.trim() : "";
+      if (statusText === "" || statusText.toLowerCase() === "n/a") {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+    document.getElementById("resetFilterBtn").style.display = "inline-block";
+    document.getElementById("showNoStatusBtn").style.display = "none";
+    showToast("Showing leads without status.");
+  };
 
-  function showToast(message) {
-    const toastBody = document.getElementById("toast-body");
-    toastBody.textContent = message;
-    const toast = new bootstrap.Toast(document.getElementById("toast"), { delay: 3000 });
-    toast.show();
-  }
-
-
-  function escapeHTML(text) {
-    if (!text) return "";
-    return text.replace(/[&<>"']/g, match => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    }[match]));
-  }
+  document.getElementById("resetFilterBtn").onclick = () => {
+    const container = document.getElementById("leadsByDateContainer");
+    const rows = container.querySelectorAll("tbody tr");
+    rows.forEach(row => {
+      row.style.display = "";
+    });
+    document.getElementById("resetFilterBtn").style.display = "none";
+    document.getElementById("showNoStatusBtn").style.display = "inline-block";
+    showToast("Filter cleared.");
+  };
 });
 </script>
 {% endblock %}

@@ -105,6 +105,21 @@ def export_interested_leads():
         download_name=filename
     )
 
+@app.route('/agent-dashboard/assigned-dates', methods=['GET'])
+@login_required(role='agent')
+def get_assigned_dates_for_agent():
+    agent_id = session['user_id']
+    assigned_dates = (
+        db.session.query(func.date(Lead.assigned_at).label('date'))
+        .filter(Lead.agent_id == agent_id)
+        .distinct()
+        .order_by('date')
+        .all()
+    )
+    date_list = [d.date.strftime('%Y-%m-%d') for d in assigned_dates if d.date]
+    return jsonify({'success': True, 'assigned_dates': date_list})
+
+
 
 @app.route('/agent-dashboard/leads-by-date', methods=['GET'])
 @login_required(role='agent')
