@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: educall-worker
+  labels:
+    name: educall-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: educall-worker
+  template:
+    metadata:
+      labels:
+        app: educall-worker
+    spec:
+      containers:
+      - name: educall-worker
+        image: rj00/educall_manager:v1.0.2
+        imagePullPolicy: IfNotPresent
+
+        command: ["celery"]
+        args:
+          - "-A"
+          - "celery_app.celery_app"
+          - "worker"
+          - "--loglevel=info"
+          - "--concurrency=2"
+        
+        envFrom:
+          - configMapRef:
+              name: educall-config
+          - secretRef:
+              name: educall-secret
+
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "265Mi"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+     

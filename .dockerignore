@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 venv/
 .env
+.gitignore
+k8s/
+docker-compose.yaml

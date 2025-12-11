@@ -20,6 +20,7 @@ from io import BytesIO
 from flask import send_file
 from sqlalchemy import func
 from flask import current_app
+from app.tasks import task_add
 
 #from app.utils import login_required
 '''@app.route('/create-admin')
@@ -39,6 +40,17 @@ def create_admin():
 
     return f"Admin user '{username}' created successfully!" '''
 
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
+
+
+@app.route("/test-celery")
+def test_celery():
+    # Queue background task
+    result = test_add.delay(2, 2)
+    return jsonify({"task_id": result.id, "status": "queued"}), 202
 
 def login_required(role=None):
     def decorator(f):

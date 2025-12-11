@@ -24,3 +24,8 @@ openpyxl==3.1.2
 # Testing (optional, useful for CI/CD)
 pytest==8.2.2
 pytest-cov==5.0.0
+
+# for prduction
+celery
+redis
+

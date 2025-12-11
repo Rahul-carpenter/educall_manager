@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: educall-web
+  labels:
+    app: educall-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: educall-web
+  template:
+    metadata:
+      labels:
+        app: educall-web
+    spec:
+      containers:
+        - name: web
+          image: rj00/educall_manager:v1.0.2
+          ports:
+            - containerPort: 5000
+
+          envFrom:
+            - configMapRef:
+                name: educall-config
+            - secretRef:
+                name: educall-secret
+
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: educall-web-service
+spec:
+  type: ClusterIP
+  selector:
+    app: educall-web
+  ports:
+    - port: 80
+      targetPort: 5000
