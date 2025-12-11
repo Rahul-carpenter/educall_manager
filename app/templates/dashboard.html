@@ -9,12 +9,28 @@
       <i class="bi bi-house-check-fill text-primary"></i> My Dashboard
     </h2>
 
-    <!-- 🔁 Optional: Link to Update Lead Status Page -->
     {% if session.get("role") == "agent" %}
       <a href="{{ url_for('agent_dashboard') }}" class="btn btn-outline-primary">
-        <i class="bi bi-pencil-square me-1"></i> Update Lead Status
+        <i class="bi bi-pencil-square me-1"></i> Update My Leads
       </a>
     {% endif %}
+  </div>
+
+  <!-- Counts and Controls -->
+  <div class="d-flex align-items-center mb-3 gap-3 flex-wrap">
+    <div>
+      <span class="badge bg-success me-2">Interested: {{ leads|selectattr('status', 'equalto', 'Interested')|list|length }}</span>
+      <span class="badge bg-danger me-2">Not Interested: {{ leads|selectattr('status', 'equalto', 'Not Interested')|list|length }}</span>
+    </div>
+
+    <input id="leadSearch" class="form-control" type="search" placeholder="Search leads..." onkeyup="filterTable()" style="max-width: 300px;">
+    
+    <button id="showNoStatusBtn" class="btn btn-warning">
+      Show Leads Without Status
+    </button>
+    <button id="resetFilterBtn" class="btn btn-secondary" style="display:none;">
+      Reset Filter
+    </button>
   </div>
 
   <!-- Leads Section -->
@@ -22,19 +38,11 @@
     <div class="card-body">
       <h4 class="card-title mb-3">My Assigned Leads</h4>
 
-      <!-- 🔍 Search -->
-      <div class="input-group mb-3">
-        <input id="leadSearch" class="form-control" type="search" placeholder="Search leads..." onkeyup="filterTable()">
-        <button class="btn btn-outline-secondary" onclick="filterTable()">
-          <i class="bi bi-search"></i>
-        </button>
-      </div>
-
-      <!-- 📋 Lead Table -->
       <div class="table-responsive">
         <table class="table table-hover align-middle text-center" id="leadTable">
-          <thead class="table-dark">
-            <tr>
+          <thead>
+            <tr class="table-dark">
+              <th>#</th>
               <th>Name</th>
               <th>Phone</th>
               <th>Email</th>
@@ -47,33 +55,45 @@
           </thead>
           <tbody>
             {% for lead in leads %}
-              <tr>
-                <td>{{ lead.name }}</td>
-                <td>{{ lead.phone }}</td>
-                <td>{{ lead.email }}</td>
-                <td>{{ lead.city }}</td>
-                <td>{{ lead.state }}</td>
-                <td>{{ lead.course }}</td>
-                <td>
-                  <span class="badge rounded-pill 
-                    {% if lead.status == 'New' %}bg-primary
-                    {% elif lead.status == 'Interested' %}bg-success
-                    {% elif lead.status == 'Not Interested' %}bg-danger
-                    {% elif lead.status == 'Follow-Up' %}bg-warning text-dark
-                    {% else %}bg-secondary
-                    {% endif %}">
-                    {{ lead.status }}
-                  </span>
-                </td>
-                <td><small class="text-muted">{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
-              </tr>
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ lead.name }}</td>
+              <td>{{ lead.phone }}</td>
+              <td>{{ lead.email }}</td>
+              <td>{{ lead.city }}</td>
+              <td>{{ lead.state }}</td>
+              <td>{{ lead.course }}</td>
+              <td>
+                {% set status = lead.status or "None" %}
+                <span class="badge rounded-pill 
+                  {% if status == 'New' %}bg-primary
+                  {% elif status == 'Interested' %}bg-success
+                  {% elif status == 'Not Interested' %}bg-danger
+                  {% elif status == 'Follow-Up' %}bg-warning text-dark
+                  {% elif status == 'Pending' %}bg-secondary text-white
+                  {% elif status == 'None' %}bg-dark text-white
+                  {% else %}bg-secondary
+                  {% endif %}">
+                  {{ status }}
+                </span>
+              </td>
+              <td>
+                <small class="text-muted">
+                {% if lead.created_at %}
+                  {{ lead.created_at.strftime('%d-%m-%Y %I:%M %p') }}
+                {% else %}
+                  -
+                {% endif %}
+                </small>
+              </td>
+            </tr>
             {% else %}
-              <tr>
-                <td colspan="8" class="text-center py-4 text-muted">
-                  <i class="bi bi-emoji-frown fs-3"></i> <br>
-                  No leads assigned to you yet.
-                </td>
-              </tr>
+            <tr>
+              <td colspan="9" class="text-muted text-center py-4">
+                <i class="bi bi-emoji-frown fs-3"></i><br>
+                No leads assigned to you.
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -82,16 +102,64 @@
   </div>
 </div>
 
-<!-- JS Search Filter Function -->
+<!-- Toast Notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1055;">
+  <div id="toast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="polite" aria-atomic="true">
+    <div class="d-flex">
+      <div id="toast-body" class="toast-body"></div>
+      <button type="button" class="btn-close btn-close-white me-2" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
 <script>
 function filterTable() {
-  const input = document.getElementById("leadSearch").value.toLowerCase();
-  const rows = document.querySelectorAll("#leadTable tbody tr");
-
+  const input = document.getElementById('leadSearch').value.toLowerCase();
+  const rows = document.querySelectorAll('#leadTable tbody tr');
   rows.forEach(row => {
     const text = row.innerText.toLowerCase();
-    row.style.display = text.includes(input) ? "" : "none";
+    row.style.display = text.includes(input) ? '' : 'none';
   });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const showNoStatusBtn = document.getElementById('showNoStatusBtn');
+  const resetFilterBtn = document.getElementById('resetFilterBtn');
+  const tableBody = document.querySelector('#leadTable tbody');
+
+  showNoStatusBtn.addEventListener('click', () => {
+    const rows = tableBody.querySelectorAll('tr');
+    let anyMatch = false;
+    rows.forEach(row => {
+      const status = row.cells[7]?.innerText.trim().toLowerCase() || '';
+      if (!status || status === 'n/a' || status === 'none' || status === '') {
+        row.style.display = '';
+        anyMatch = true;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    if (!anyMatch) {
+      alert('No leads found without status.');
+    }
+    showNoStatusBtn.style.display = 'none';
+    resetFilterBtn.style.display = 'inline-block';
+  });
+
+  resetFilterBtn.addEventListener('click', () => {
+    const rows = tableBody.querySelectorAll('tr');
+    rows.forEach(row => (row.style.display = ''));
+    resetFilterBtn.style.display = 'none';
+    showNoStatusBtn.style.display = 'inline-block';
+  });
+});
+
+function showToast(message) {
+  const toastEl = document.getElementById('toast');
+  const toastBody = document.getElementById('toast-body');
+  toastBody.textContent = message;
+  const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+  toast.show();
 }
 </script>
 {% endblock %}

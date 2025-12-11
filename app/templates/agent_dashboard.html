@@ -1,46 +1,409 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-  <h3 class="text-primary"><i class="bi bi-card-list"></i> Your Assigned Leads</h3>
+  <h3 class="mb-4 text-primary"><i class="bi bi-calendar"></i> Your Assigned Leads by Date</h3>
+  <!-- Controls: Date picker, export and filter buttons -->
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <div style="min-width: 260px;">
+      <label for="leadDatePicker" class="form-label">Select a date</label>
+      <input type="text" id="leadDatePicker" class="form-control" placeholder="Select a date" />
+    </div>
+    <button id="exportInterestedBtn" class="btn btn-success mt-4" disabled>
+      <i class="bi bi-file-earmark-excel"></i> Export Interested Leads
+    </button>
+    <button id="showNoStatusBtn" class="btn btn-warning mt-4">
+      Show Leads Without Status
+    </button>
+    <button id="resetFilterBtn" class="btn btn-secondary mt-4" style="display:none;">
+      Reset Filter
+    </button>
+  </div>
+  <!-- Container for leads -->
+  <div id="leadsByDateContainer">
+    <p class="text-muted">Please select a date to view assigned leads.</p>
+  </div>
+</div>
 
-  {% if leads %}
-    <table class="table table-bordered mt-3">
-      <thead class="table-light">
+<!-- Toast Notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+  <div id="toast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="polite" aria-atomic="true">
+    <div class="d-flex">
+      <div id="toast-body" class="toast-body">Action completed.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Send Message -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="messageModalLabel">Send Message to Lead</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="modal-message-form" autocomplete="off">
+          <input type="hidden" id="modal-lead-id" />
+          <div class="mb-3">
+            <label class="form-label">Message to Lead <span class="text-danger">*</span></label>
+            <textarea id="messageToLead" class="form-control" rows="3" maxlength="500" required placeholder="Write message to send via WhatsApp or Email"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Note for Admin <small class="text-muted">(Optional, visible only to admin)</small></label>
+            <textarea id="noteToAdmin" class="form-control" rows="2" maxlength="500" placeholder="This will only be visible to the admin"></textarea>
+          </div>
+          <div class="d-flex flex-column flex-sm-row justify-content-end gap-2">
+            <button type="button" class="btn btn-success d-flex align-items-center gap-1" style="background-color:#25D366; border-color:#25D366;" id="sendWhatsAppBtn">
+              <i class="bi bi-whatsapp" style="font-size:1.3em"></i> WhatsApp
+            </button>
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-1" id="sendEmailBtn">
+              <i class="bi bi-envelope-fill" style="font-size:1.1em"></i> Email
+            </button>
+            <button type="button" class="btn btn-warning d-flex align-items-center gap-1" id="sendNoteBtn">
+              <i class="bi bi-chat-left-text-fill"></i> Send Note to Admin
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Flatpickr CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<style>
+  /* Highlight assigned dates */
+  .assigned-lead-day {
+    background: #ffe066 !important;
+    border-radius: 50%;
+    color: #333 !important;
+    border: 2px solid #faa307 !important;
+  }
+  /* Responsive table and cards */
+  @media (max-width: 768px) {
+    .desktop-table { display: none; }
+    .mobile-card { display: block; }
+  }
+  @media (min-width: 769px) {
+    .desktop-table { display: block; }
+    .mobile-card { display: none; }
+  }
+</style>
+
+<script>
+let currentLead = {};
+let currentDate = null;
+let assignedDates = [];
+
+function escapeHTML(text) {
+  if (!text) return "";
+  return text.replace(/[&<>"']/g, match => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[match]));
+}
+
+function showToast(message) {
+  const toastBody = document.getElementById("toast-body");
+  toastBody.textContent = message;
+  const toast = new bootstrap.Toast(document.getElementById("toast"), { delay: 3000 });
+  toast.show();
+}
+
+async function fetchAssignedDates() {
+  try {
+    let res = await fetch('/agent-dashboard/assigned-dates');
+    let data = await res.json();
+    if (data.success) {
+      assignedDates = data.assigned_dates || [];
+      initCalendar();
+    } else {
+      console.error("Failed to load assigned dates");
+      initCalendar();
+    }
+  } catch (e) {
+    console.error("Error fetching assigned dates", e);
+    initCalendar();
+  }
+}
+
+function initCalendar() {
+  flatpickr("#leadDatePicker", {
+    dateFormat: "Y-m-d",
+    allowInput: true,
+    clickOpens: true,
+    onDayCreate: (dObj, dStr, fp, dayElem) => {
+      if (assignedDates.includes(fp.formatDate(dayElem.dateObj, "Y-m-d"))) {
+        dayElem.classList.add("assigned-lead-day");
+      }
+    },
+    onChange: (selectedDates, dateStr, instance) => {
+      instance.input.value = dateStr;
+      currentDate = dateStr;
+      loadLeadsForDate(dateStr);
+    }
+  });
+}
+
+async function loadLeadsForDate(dateStr) {
+  const container = document.getElementById("leadsByDateContainer");
+  const exportBtn = document.getElementById("exportInterestedBtn");
+  container.innerHTML = "<p>Loading leads...</p>";
+  exportBtn.disabled = true;
+
+  try {
+    let res = await fetch(`/agent-dashboard/leads-by-date?date=${dateStr}`);
+    let data = await res.json();
+
+    if (!data.success) {
+      container.innerHTML = `<div class="alert alert-warning">${data.error || "Failed to load leads."}</div>`;
+      return;
+    }
+
+    if (data.leads.length === 0) {
+      container.innerHTML = `<p>No leads assigned on ${dateStr}.</p>`;
+      return;
+    }
+
+    let interestedCount = data.leads.filter(l => l.status === "Interested").length;
+    exportBtn.disabled = interestedCount === 0;
+
+    let desktopHtml = `
+      <div class="desktop-table"><table class="table table-bordered table-hover table-striped align-middle">
+      <thead class="table-primary text-center sticky-top" style="z-index:1;">
         <tr>
+          <th style="width:60px;">S.No</th>
           <th>Name</th>
           <th>Email</th>
           <th>Phone</th>
           <th>Status</th>
           <th>Update Status</th>
+          <th>Message & Actions</th>
         </tr>
       </thead>
-      <tbody>
-        {% for lead in leads %}
-        <tr>
-          <td>{{ lead.name }}</td>
-          <td>{{ lead.email or '-' }}</td>
-          <td>{{ lead.phone }}</td>
-          <td>{{ lead.status }}</td>
+      <tbody>`;
+
+    let mobileHtml = `<div class="mobile-card">`;
+
+    data.leads.forEach((lead, i) => {
+      desktopHtml += `<tr data-lead-id="${lead.id}">
+          <td class="fw-bold text-center text-secondary-emphasis">${i + 1}</td>
+          <td>${escapeHTML(lead.name)}</td>
+          <td>${escapeHTML(lead.email || "-")}</td>
+          <td>${escapeHTML(lead.phone || "-")}</td>
+          <td class="lead-status">${escapeHTML(lead.status || "N/A")}</td>
           <td>
-            <form method="POST" action="{{ url_for('update_lead_status') }}">
-              <input type="hidden" name="lead_id" value="{{ lead.id }}">
-              <div class="d-flex">
-                <select name="status_{{ lead.id }}" class="form-select form-select-sm me-2">
-                  <option value="Pending" {% if lead.status == 'Pending' %}selected{% endif %}>Pending</option>
-                  <option value="Interested" {% if lead.status == 'Interested' %}selected{% endif %}>Interested</option>
-                  <option value="Not Interested" {% if lead.status == 'Not Interested' %}selected{% endif %}>Not Interested</option>
-                  <option value="Talk Later" {% if lead.status == 'Talk Later' %}selected{% endif %}>Talk Later</option>
-                </select>
-                <button type="submit" class="btn btn-sm btn-primary">Update</button>
-              </div>
-            </form>
+            <div class="d-flex">
+              <select class="form-select form-select-sm me-2 status-select">
+                <option value="Pending" ${lead.status === "Pending" ? "selected" : ""}>Pending</option>
+                <option value="Interested" ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
+                <option value="Not Interested" ${lead.status === "Not Interested" ? "selected" : ""}>Not Interested</option>
+                <option value="Talk Later" ${lead.status === "Talk Later" ? "selected" : ""}>Talk Later</option>
+              </select>
+              <button class="btn btn-sm btn-primary update-status-btn">Update</button>
+            </div>
           </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% else %}
-    <p>No leads assigned yet.</p>
-  {% endif %}
-</div>
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              <button class="btn btn-success btn-sm d-flex align-items-center gap-1 open-msg-modal"
+                style="background-color:#25D366; border-color:#25D366;"
+                data-lead="${lead.id}" data-name="${escapeHTML(lead.name)}"
+                data-email="${escapeHTML(lead.email)}" data-phone="${escapeHTML(lead.phone)}"
+                title="Send WhatsApp or Email">
+                <i class="bi bi-whatsapp" style="font-size: 1.3em;"></i>
+                <span class="d-none d-sm-inline">WhatsApp / Email</span>
+              </button>
+              ${lead.phone ? `<a href="tel:${lead.phone}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" title="Call Lead"><i class="bi bi-telephone-fill"></i><span class="d-none d-sm-inline">Call</span></a>` : ""}
+            </div>
+          </td>
+        </tr>`;
+
+      mobileHtml += `<div class="card mb-2" data-lead-id="${lead.id}">
+          <div class="card-body">
+            <h5 class="card-title">${escapeHTML(lead.name)}</h5>
+            <p class="card-text">
+              <i class="bi bi-envelope"></i> ${escapeHTML(lead.email || "-")}<br>
+              <i class="bi bi-telephone"></i> ${escapeHTML(lead.phone || "-")}
+            </p>
+            <div class="mb-2">
+              <label>Status:</label>
+              <select class="form-select form-select-sm status-select">
+                <option value="Pending" ${lead.status === "Pending" ? "selected" : ""}>Pending</option>
+                <option value="Interested" ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
+                <option value="Not Interested" ${lead.status === "Not Interested" ? "selected" : ""}>Not Interested</option>
+                <option value="Talk Later" ${lead.status === "Talk Later" ? "selected" : ""}>Talk Later</option>
+              </select>
+              <button class="btn btn-primary btn-sm mt-1 update-status-btn">Update</button>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              <button class="btn btn-success flex-grow-1 open-msg-modal"
+                data-lead="${lead.id}" data-name="${escapeHTML(lead.name)}"
+                data-email="${escapeHTML(lead.email)}" data-phone="${escapeHTML(lead.phone)}">
+                <i class="bi bi-whatsapp"></i> WhatsApp/Email
+              </button>
+              ${lead.phone ? `<a href="tel:${lead.phone}" class="btn btn-outline-primary flex-grow-1"><i class="bi bi-telephone-fill"></i> Call</a>` : ""}
+            </div>
+          </div>
+        </div>`;
+    });
+
+    desktopHtml += "</tbody></table></div>";
+    mobileHtml += "</div>";
+
+    container.innerHTML = desktopHtml + mobileHtml;
+
+    addUpdateStatusListeners();
+    addMessageModalListeners();
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-danger">Error fetching leads.</div>`;
+    console.error(err);
+  }
+}
+
+function addUpdateStatusListeners() {
+  document.querySelectorAll(".update-status-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const row = btn.closest("[data-lead-id]");
+      const leadId = row.dataset.leadId;
+      const selectElement = row.querySelector(".status-select");
+      const newStatus = selectElement.value;
+      try {
+        const res = await fetch("/agent-dashboard/update-lead-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lead_id: leadId, status: newStatus }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (row.querySelector(".lead-status")) row.querySelector(".lead-status").textContent = newStatus;
+          showToast("✅ Status updated.");
+        } else {
+          showToast("❌ Update failed.");
+        }
+      } catch (e) {
+        showToast("❌ Error updating status.");
+        console.error(e);
+      }
+    };
+  });
+}
+
+function addMessageModalListeners() {
+  document.querySelectorAll(".open-msg-modal").forEach(btn => {
+    btn.onclick = () => {
+      const modal = new bootstrap.Modal(document.getElementById("messageModal"));
+      currentLead = {
+        id: btn.dataset.lead,
+        email: btn.dataset.email,
+        phone: btn.dataset.phone,
+        name: btn.dataset.name,
+      };
+      document.getElementById("modal-lead-id").value = currentLead.id;
+      document.getElementById("messageToLead").value = "";
+      document.getElementById("noteToAdmin").value = "";
+      modal.show();
+    };
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  fetchAssignedDates();
+
+  const exportBtn = document.getElementById("exportInterestedBtn");
+  exportBtn.onclick = () => {
+    if (!currentDate) return;
+    window.open(`/agent-dashboard/export-interested-leads?date=${currentDate}`, "_blank");
+    showToast("✅ Excel download started.");
+  };
+
+  document.getElementById("sendWhatsAppBtn").onclick = () => {
+    const msg = document.getElementById("messageToLead").value.trim();
+    if (!msg) return showToast("⚠️ Message is required.");
+    if (!currentLead.phone) return showToast("❌ No WhatsApp number.");
+    window.open(`https://wa.me/${currentLead.phone}?text=${encodeURIComponent(msg)}`, "_blank");
+    showToast("✅ WhatsApp opened.");
+  };
+
+  document.getElementById("sendEmailBtn").onclick = async () => {
+    const msg = document.getElementById("messageToLead").value.trim();
+    const note = document.getElementById("noteToAdmin").value.trim();
+    if (!msg) return showToast("⚠️ Message required");
+    try {
+      const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: msg,
+          note_to_admin: note,
+          only_note: false,
+        }),
+      });
+      const data = await res.json();
+      showToast(data.success ? "✅ Email sent!" : "❌ " + data.error);
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Email send failed");
+    }
+  };
+
+  document.getElementById("sendNoteBtn").onclick = async () => {
+    const note = document.getElementById("noteToAdmin").value.trim();
+    if (!note) return showToast("⚠️ Please enter a note.");
+    try {
+      const res = await fetch(`/ajax-send-lead-email/${currentLead.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "",
+          note_to_admin: note,
+          only_note: true,
+        }),
+      });
+      const data = await res.json();
+      showToast(data.success ? "✅ Note sent to admin!" : "❌ " + data.error);
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Failed to submit note");
+    }
+  };
+
+  document.getElementById("showNoStatusBtn").onclick = () => {
+    const container = document.getElementById("leadsByDateContainer");
+    const rows = container.querySelectorAll("tbody tr");
+    if (!rows.length) {
+      showToast("No leads to filter.");
+      return;
+    }
+    rows.forEach(row => {
+      const statusCell = row.querySelector(".lead-status");
+      const statusText = statusCell ? statusCell.textContent.trim() : "";
+      if (statusText === "" || statusText.toLowerCase() === "n/a") {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+    document.getElementById("resetFilterBtn").style.display = "inline-block";
+    document.getElementById("showNoStatusBtn").style.display = "none";
+    showToast("Showing leads without status.");
+  };
+
+  document.getElementById("resetFilterBtn").onclick = () => {
+    const container = document.getElementById("leadsByDateContainer");
+    const rows = container.querySelectorAll("tbody tr");
+    rows.forEach(row => {
+      row.style.display = "";
+    });
+    document.getElementById("resetFilterBtn").style.display = "none";
+    document.getElementById("showNoStatusBtn").style.display = "inline-block";
+    showToast("Filter cleared.");
+  };
+});
+</script>
 {% endblock %}

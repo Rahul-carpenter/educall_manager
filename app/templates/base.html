@@ -1,119 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>{% block title %}EduCall Manager{% endblock %}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Bootstrap 5 and Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Bootstrap CSS & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
 
   <style>
-    body {
-      background: linear-gradient(to right, #e9eaf6, #f8f9fa 60%);
+    html, body {
       min-height: 100vh;
+      background: linear-gradient(96deg, #f5f7fa 0%, #e8eaf6 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #212529;
+      -webkit-text-size-adjust: 100%;
     }
-
+    @media (max-width: 576px) {
+      .content-glass {
+        padding: 14px 2vw;
+        margin-top: 12px;
+        border-radius: 10px;
+      }
+      .modal-dialog {
+        max-width: 99vw !important;
+        margin: 0 auto;
+      }
+      .table {
+        font-size: 0.94em;
+      }
+      .table thead th {
+        font-size: 1.03em;
+        padding-top: .75em;
+        padding-bottom: .75em;
+      }
+    }
     .navbar {
-      box-shadow: 0 2px 8px rgba(87, 92, 255, 0.06);
+      box-shadow: 0 3px 12px rgba(87, 92, 255, 0.10), 0 1.5px 4px #eee;
     }
-
     .brand-title {
-      letter-spacing: 1px;
-      font-weight: bold;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      font-size: 1.5rem;
     }
-
     .brand-title .highlight {
-      color: #ffc107; /* Glowing golden yellow */
+      color: #ffc107;
       animation: glow 2s ease-in-out infinite alternate;
+      text-shadow: 0 0 10px #ffc107;
     }
-
     @keyframes glow {
-      from {
-        text-shadow: 0 0 6px #ffecb3, 0 0 10px #ffc107;
-      }
-      to {
-        text-shadow: 0 0 12px #ffd740, 0 0 18px #ffc107;
-      }
+      from { text-shadow: 0 0 8px #ffecb3, 0 0 12px #ffc107; }
+      to   { text-shadow: 0 0 15px #ffd740, 0 0 22px #ffc107; }
     }
-
-    .search-bar input:focus {
-      box-shadow: 0 0 12px #5680e988;
-      border-color: #5680e9;
-    }
-
     .navbar-nav .nav-link.active {
-      font-weight: bold;
+      font-weight: 700;
       color: #ffc107 !important;
+      text-shadow: 0 0 4px #ffb700;
     }
-
+    .nav-link {
+      color: #f8f9fa;
+      transition: color 0.23s;
+    }
+    .nav-link:hover {
+      color: #ffc107 !important;
+      text-decoration: underline;
+    }
     .content-glass {
-      background: rgba(255,255,255,0.95);
-      border-radius: 18px;
-      box-shadow: 0 6px 36px -12px rgba(0,0,0,0.08);
-      padding: 36px 28px 32px;
-      margin-top: 32px;
+      background: rgba(255,255,255,0.98);
+      border-radius: 20px;
+      box-shadow: 0 8px 48px -16px rgba(0,0,0,0.08);
+      padding: 40px 32px 40px;
+      margin-top: 36px;
+      min-height: 73vh;
+      color: #212529;
+      transition: box-shadow .3s;
     }
-
+    .content-glass:focus-within {
+      box-shadow: 0 0 0 4px #c7e0fc66;
+    }
+    .table-responsive {
+      margin-bottom: .7rem;
+    }
+    /* --- Improved Table Header Visibility --- */
+    .table thead th, .table th {
+      background: #3577d4 !important;
+      color: #fff !important;
+      font-weight: 600;
+      letter-spacing: 0.015em;
+      border-bottom: 2.5px solid #274a6f;
+      text-align: center;
+      z-index: 2;
+    }
+    .table tbody td {
+      text-align: center;
+      vertical-align: middle;
+    }
+    .table-striped>tbody>tr:nth-of-type(odd)>* {
+      background-color: #e9eefa !important;
+    }
+    .table-hover tbody tr:hover td {
+      background-color: #d5dff4 !important;
+    }
+    .search-bar input:focus {
+      box-shadow: 0 0 15px #5680e9bb;
+      border-color: #5680e9;
+      outline: none;
+    }
+    .search-bar input { min-width: 120px; }
     footer {
-      background: linear-gradient(90deg, #5680e9dd 20%, #8860d0bb 100%);
-      color: #fff;
-      padding: 24px 0 6px 0;
-      border-top: 1px solid #e0e3ff;
-      margin-top: 42px;
+      background: linear-gradient(90deg, #5680e9dd 18%, #8860d0bb 100%);
+      color: #fefefe;
+      padding: 28px 0 12px 0;
+      border-top: 1px solid #c2c7ff;
+      margin-top: 48px;
+      font-size: 0.98rem;
+      letter-spacing: 0.5px;
+      user-select: none;
     }
-
-    footer small {
-      letter-spacing: .5px;
-      opacity: 0.95;
-    }
+    footer small { opacity: 0.92; }
+    .toast { font-size: 1rem; }
+    .alert { font-size: 1.01em; }
   </style>
 </head>
 <body>
-
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
     <div class="container">
-      <a class="navbar-brand d-flex align-items-center fs-4" href="/">
+      <a class="navbar-brand d-flex align-items-center fs-4" href="{{ url_for('index') }}">
         <i class="bi bi-mortarboard-fill me-2"></i>
         <span class="brand-title">
-          <span class="text-white">Edu</span><span class="highlight">Call</span> <span class="text-white">Manager</span>
+          <span class="text-white">Edu</span><span class="highlight">Call</span>
+          <span class="text-white">Manager</span>
         </span>
       </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarUiNav" aria-controls="navbarUiNav" aria-expanded="false" aria-label="Toggle navigation">
+      <button class="navbar-toggler"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#navbarUiNav"
+              aria-controls="navbarUiNav"
+              aria-expanded="false"
+              aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarUiNav">
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
           {% if session.get('user_id') %}
             <li class="nav-item">
-              <a class="nav-link{% if request.endpoint=='index' %} active{% endif %}" href="#"><i class="bi bi-person-check"></i> {{ session.get('role')|capitalize }}</a>
+              <a class="nav-link{% if request.endpoint == 'index' %} active{% endif %}"
+                 href="{{ url_for('index') }}">
+                <i class="bi bi-person-check"></i> {{ session.get('role')|capitalize }}
+              </a>
             </li>
-            {% if session.get("role") == "admin" %}
-              <li class="nav-item"><a class="nav-link{% if request.endpoint=='view_agents' %} active{% endif %}" href="{{ url_for('view_agents') }}">Agents</a></li>
-              <li class="nav-item"><a class="nav-link{% if request.endpoint=='create_user' %} active{% endif %}" href="{{ url_for('create_user') }}">Add User</a></li>
-              <li class="nav-item"><a class="nav-link{% if request.endpoint=='view_agents' %} active{% endif %}" href="{{ url_for('view_agents') }}">Assign Leads</a></li>
+            {% if session.get('role') == 'admin' %}
+              <li class="nav-item">
+                <a class="nav-link{% if request.endpoint == 'view_agents' %} active{% endif %}"
+                   href="{{ url_for('view_agents') }}">Agents</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link{% if request.endpoint == 'create_user' %} active{% endif %}"
+                   href="{{ url_for('create_user') }}">Add User</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link{% if request.endpoint == 'assign_leads' %} active{% endif %}"
+                   href="{{ url_for('view_agents') }}">Assign Leads</a>
+              </li>
             {% endif %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </a>
             </li>
           {% else %}
             <li class="nav-item">
-              <a class="nav-link{% if request.endpoint=='register' %} active{% endif %}" href="{{ url_for('register') }}"><i class="bi bi-person-plus"></i> Register</a>
+              <a class="nav-link{% if request.endpoint == 'register' %} active{% endif %}"
+                 href="{{ url_for('register') }}">
+                <i class="bi bi-person-plus"></i> Register
+              </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link{% if request.endpoint=='login' %} active{% endif %}" href="{{ url_for('login') }}"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+              <a class="nav-link{% if request.endpoint == 'login' %} active{% endif %}"
+                 href="{{ url_for('login') }}">
+                <i class="bi bi-box-arrow-in-right"></i> Login
+              </a>
             </li>
           {% endif %}
         </ul>
-        {% if session.get("role") == "admin" %}
-          <form class="d-flex search-bar ms-3" method="GET" action="{{ url_for('global_search') }}">
-            <input class="form-control me-2" type="search" name="q" placeholder="Search..." aria-label="Search" style="min-width: 180px;">
-            <button class="btn btn-outline-light" type="submit">
-              <i class="bi bi-search"></i>
-            </button>
-          </form>
+        {% if session.get('role') == "admin" %}
+        <form class="d-flex search-bar ms-3" method="GET" action="{{ url_for('global_search') }}">
+          <input class="form-control me-2" type="search" name="q" placeholder="Search..." required minlength="1" aria-label="Search" />
+          <button class="btn btn-outline-light" type="submit" aria-label="Submit search"><i class="bi bi-search"></i></button>
+        </form>
         {% endif %}
       </div>
     </div>
@@ -124,31 +201,50 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
   </div>
 
-  <!-- Main Content -->
+  <!-- Page Content -->
   <div class="container">
     <div class="content-glass shadow-sm">
       {% block content %}{% endblock %}
     </div>
   </div>
 
-  <!-- Footer -->
   <footer class="text-center">
     <small>
       <i class="bi bi-lightning-fill"></i>
-      © {{ datetime.utcnow().year }} EduCall Manager &mdash; Crafted with
-      <span style="color: #e66077;">&#10084;</span> using <i class="bi bi-bootstrap"></i>
+      © {{ datetime.utcnow().year }} EduCall Manager — Crafted with
+      <span style="color:#e66077;">&#10084;</span> using <i class="bi bi-bootstrap"></i>
     </small>
   </footer>
 
+  <!-- Toast for JS notifications -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
+    <div id="toast" class="toast align-items-center text-white bg-primary border-0"
+         role="alert" aria-live="polite" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="toast-body">Action completed</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function showToast(message) {
+      const toastBody = document.getElementById('toast-body');
+      toastBody.textContent = message;
+      const toast = new bootstrap.Toast(document.getElementById('toast'), { delay: 3000 });
+      toast.show();
+    }
+  </script>
 </body>
 </html>

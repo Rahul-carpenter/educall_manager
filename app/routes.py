@@ -1,15 +1,43 @@
-from flask import render_template, request, redirect, url_for, session, flash
+from flask import render_template, request, redirect, url_for, session, flash, jsonify
 import pandas as pd
 from werkzeug.utils import secure_filename
 import os
 import traceback
-from app import app, db
+from app import app, db, mail
+from flask_mail import Message
 from app.models import Lead, User  # Ensure User model is defined
 from werkzeug.security import check_password_hash
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 from functools import wraps
+import re
+from email.utils import parseaddr
+from werkzeug.security import generate_password_hash
+from datetime import datetime
+from sqlalchemy import func
+import pandas as pd
+from io import BytesIO
+from flask import send_file
+from sqlalchemy import func
+from flask import current_app
+
 #from app.utils import login_required
+'''@app.route('/create-admin')
+def create_admin():
+    username = request.args.get('username', 'admin')
+    password = request.args.get('password', 'admin123')
+
+    # Check if admin already exists
+    if User.query.filter_by(username=username).first():
+        return f"User '{username}' already exists."
+
+    # Hash password and create user
+    hashed_password = generate_password_hash(password)
+    new_user = User(username=username, password_hash=hashed_password, role='admin')
+    db.session.add(new_user)
+    db.session.commit()
+
+    return f"Admin user '{username}' created successfully!" '''
 
 
 def login_required(role=None):
@@ -27,6 +55,209 @@ def login_required(role=None):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+
+
+
+
+
+@app.route('/agent-dashboard/export-interested-leads', methods=['GET'])
+@login_required(role='agent')
+def export_interested_leads():
+    date_str = request.args.get('date')
+    try:
+        assign_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+
+    agent_id = session['user_id']
+    leads = Lead.query.filter(
+        Lead.agent_id == agent_id,
+        func.date(Lead.assigned_at) == assign_date,
+        Lead.status == 'Interested'
+    ).all()
+
+    if not leads:
+        return jsonify({'success': False, 'error': 'No interested leads on this date'}), 404
+
+    data = [{
+        'Name': lead.name,
+        'Email': lead.email,
+        'Phone': lead.phone,
+        'City': lead.city,
+        'State': lead.state,
+        'Course': lead.course,
+        'Status': lead.status,
+        'Assigned At': lead.assigned_at.strftime('%Y-%m-%d %H:%M'),
+    } for lead in leads]
+
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    filename = f"Interested_Leads_{date_str}.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/agent-dashboard/assigned-dates', methods=['GET'])
+@login_required(role='agent')
+def get_assigned_dates_for_agent():
+    agent_id = session['user_id']
+    assigned_dates = (
+        db.session.query(func.date(Lead.assigned_at).label('date'))
+        .filter(Lead.agent_id == agent_id)
+        .distinct()
+        .order_by('date')
+        .all()
+    )
+    date_list = [d.date.strftime('%Y-%m-%d') for d in assigned_dates if d.date]
+    return jsonify({'success': True, 'assigned_dates': date_list})
+
+
+
+@app.route('/agent-dashboard/leads-by-date', methods=['GET'])
+@login_required(role='agent')
+def leads_by_date_for_agent():
+    date_str = request.args.get('date')
+    try:
+        assign_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+
+    agent_id = session['user_id']
+    leads = Lead.query.filter(
+        Lead.agent_id == agent_id,
+        func.date(Lead.assigned_at) == assign_date
+    ).order_by(Lead.created_at.desc()).all()
+
+    lead_list = []
+    for lead in leads:
+        lead_list.append({
+            'id': lead.id,
+            'name': lead.name,
+            'email': lead.email,
+            'phone': lead.phone,
+            'status': lead.status,
+            'city': lead.city,
+            'state': lead.state,
+            'course': lead.course,
+            'assigned_at': lead.assigned_at.strftime('%Y-%m-%d %H:%M') if lead.assigned_at else '',
+            'note_to_admin': lead.note_to_admin or '',
+        })
+
+    return jsonify({'success': True, 'leads': lead_list})
+
+
+def is_valid_email(email):
+    if not email:
+        return False
+    address = parseaddr(email)[1]
+    regex = r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
+    return re.match(regex, address) is not None
+
+@app.route('/admin/send-bulk-email', methods=['POST'])
+@login_required(role='admin')
+def send_bulk_email():
+    data = request.get_json()
+    subject = data.get('subject', 'EduCall Bulk Email')
+    body = data.get('body', 'Hello, this is a bulk email from EduCall Manager.')
+    
+    leads = Lead.query.filter(Lead.email.isnot(None)).all()
+    sent_count = 0
+    skipped_count = 0
+    
+    for lead in leads:
+        email = lead.email
+        if is_valid_email(email):
+            try:
+                msg = Message(subject=subject, recipients=[email])
+                msg.body = body
+                mail.send(msg)
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed to send to {email}: {e}")
+                skipped_count += 1
+        else:
+            skipped_count += 1
+    
+    return jsonify({'success': True, 'sent': sent_count, 'skipped': skipped_count})
+
+@app.route('/admin/send-bulk-email-agent/<string:agent_username>', methods=['POST'])
+@login_required(role='admin')
+def send_bulk_email_agent(agent_username):
+    data = request.get_json() or {}
+    subject = data.get('subject', 'EduCall Bulk Email')
+    body = data.get('body', 'Hello, this is a bulk email from EduCall Manager.')
+
+    leads = Lead.query.join(User).filter(User.username == agent_username, Lead.email.isnot(None)).all()
+
+    sent_count = 0
+    skipped_count = 0
+
+    for lead in leads:
+        email = lead.email
+        if is_valid_email(email):
+            try:
+                msg = Message(subject=subject, recipients=[email])
+                msg.body = body
+                mail.send(msg)
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed to send to {email}: {e}")
+                skipped_count += 1
+        else:
+            skipped_count += 1
+
+    return jsonify({'success': True, 'sent': sent_count, 'skipped': skipped_count})
+
+
+
+def send_email(to, subject="EduCall Notification", body=""):
+    try:
+        msg = Message(subject=subject, recipients=[to])
+        msg.body = body or "No message was provided."
+        mail.send(msg)
+        print(f"✅ Email sent to {to}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send email to {to}: {e}")
+        return False
+    
+@app.route('/ajax-send-lead-email/<int:lead_id>', methods=['POST'])
+@login_required(role='agent')
+def ajax_send_lead_email(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    data = request.get_json()
+    message = data.get("message", "").strip()
+    note = data.get("note_to_admin", "").strip()
+    only_note = data.get("only_note", False)
+
+    if only_note:  # Agent clicked "Send Note to Admin" only
+        if note:
+            lead.note_to_admin = note
+            db.session.commit()
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "error": "Note cannot be empty."})
+    else:
+        if not message:
+            return jsonify({"success": False, "error": "Message can't be empty"})
+        if note:
+            lead.note_to_admin = note
+            db.session.commit()
+        success = send_email(
+            to=lead.email,
+            subject="Message from EduCall",
+            body=message
+        )
+        return jsonify({"success": success})
+
 
 @app.route('/global-search')
 @login_required(role='admin')
@@ -152,6 +383,8 @@ def view_agents():
     agents = User.query.filter_by(role="agent").all()
     return render_template("agents.html", agents=agents)
 
+
+
 @app.route('/assign-leads/<int:agent_id>', methods=['GET', 'POST'])
 def assign_leads(agent_id):
     if session.get('role') != 'admin':
@@ -179,16 +412,20 @@ def assign_leads(agent_id):
 
                 print("DEBUG Columns:", df.columns)
 
+                # Use the same assignment time for the whole batch
+                assignment_time = db.session.execute(func.now()).scalar()
+
                 for _, row in df.iterrows():
                     lead = Lead(
-                        name=row['Name'],                # Must match column in Excel/CSV
-                        phone=row['Phone'],              # Match case exactly (e.g., 'phone' vs 'Phone')
+                        name=row['Name'],
+                        phone=row['Phone'],
                         email=row.get('Email'),
                         city=row.get('City'),
                         state=row.get('State'),
                         course=row.get('Course'),
-                        #status='Pending',
-                        agent_id=agent.id
+                        # status='Pending',
+                        agent_id=agent.id,
+                        assigned_at=assignment_time  # <-- Assign the timestamp here!
                     )
                     db.session.add(lead)
 
@@ -203,6 +440,7 @@ def assign_leads(agent_id):
                 return redirect(request.url)
 
     return render_template('assign_leads.html', agent=agent)
+
 
 @app.route('/update-status/<int:lead_id>', methods=['POST'])
 def update_lead_status_by_id(lead_id):
@@ -222,23 +460,66 @@ def update_lead_status_by_id(lead_id):
     flash("Lead status updated!", "success")
     return redirect(url_for('agent_dashboard'))
 
-@app.route('/update-lead-status', methods=['POST'])
-def update_lead_status():
-    if session.get('role') != 'agent':
-        return redirect(url_for('login'))
 
-    lead_id = request.form.get('lead_id')
-    status = request.form.get(f'status_{lead_id}')
+
+@app.route('/agent-dashboard/update-lead-status', methods=['POST'])
+@login_required(role='agent')
+def agent_update_lead_status():
+    data = request.get_json()
+    lead_id = data.get('lead_id')
+    new_status = data.get('status')
+
+    if not lead_id or new_status is None:
+        return jsonify({'success': False, 'error': 'Invalid input'}), 400
 
     lead = Lead.query.filter_by(id=lead_id, agent_id=session['user_id']).first()
-    if lead:
-        lead.status = status
-        db.session.commit()
-        flash("Lead status updated.", "success")
-    else:
-        flash("Lead not found or access denied.", "danger")
+    if not lead:
+        return jsonify({'success': False, 'error': 'Lead not found or unauthorized'}), 404
 
-    return redirect(url_for('agent_dashboard'))
+    lead.status = new_status
+    db.session.commit()
+
+    agent_id = session['user_id']
+    leads = Lead.query.filter_by(agent_id=agent_id).all()
+
+    # Check all leads have a non-empty status (not None or empty string)
+    all_completed = all(lead.status and lead.status.strip() != '' for lead in leads)
+
+    if all_completed:
+        # Count statuses
+        pending_count = sum(1 for lead in leads if lead.status.lower() == 'pending')
+        interested_count = sum(1 for lead in leads if lead.status.lower() == 'interested')
+        not_interested_count = sum(1 for lead in leads if lead.status.lower() == 'not interested')
+
+        agent = User.query.get(agent_id)
+        admin_email = current_app.config.get('ADMIN_EMAIL') or 'rc26022020@gmail.com'  # Update as needed
+        latest_created_at = max((lead.created_at for lead in leads if lead.created_at), default=None)
+        completed_date_str = latest_created_at.strftime('%Y-%m-%d %H:%M') if latest_created_at else "Unknown"
+        subject = f"Agent {agent.username} Completed All Leads"
+
+        body = (
+            f"Hello Admin,\n\n"
+            f"Agent {agent.username} has updated all assigned leads with statuses.\n"
+            f"Leads were completed on (latest lead creation date): {completed_date_str}\n\n"
+            f"Summary:\n"
+            f"- Pending: {pending_count}\n"
+            f"- Interested: {interested_count}\n"
+            f"- Not Interested: {not_interested_count}\n\n"
+            f"Please review and assign more leads as needed.\n\n"
+            f"Regards,\n"
+            f"EduCall Manager"
+        )
+
+        try:
+            msg = Message(subject=subject, recipients=[admin_email])
+            msg.body = body
+            mail.send(msg)
+            print(f"✅ Notification email sent to admin ({admin_email}) regarding agent {agent.username}")
+        except Exception as e:
+            print(f"❌ Failed to send admin notification email: {e}")
+
+    return jsonify({'success': True, 'message': 'Status updated successfully'})
+
 
 
 
@@ -305,14 +586,17 @@ def index():
                 "interested": sum(1 for lead in leads if lead.status == "Interested"),
                 "not_interested": sum(1 for lead in leads if lead.status == "Not Interested"),
                 "talk_later": sum(1 for lead in leads if lead.status == "Talk to Later"),
+                "pending": sum(1 for lead in leads if lead.status == "Pending"),
             }
             leads_by_agent[agent.username] = summary
 
         return render_template("admin_dashboard.html", leads_by_agent=leads_by_agent)
 
-    # Agent view
+    # Add this to handle other roles (e.g., agents)
     leads = Lead.query.filter_by(agent_id=session["user_id"]).order_by(Lead.created_at.desc()).all()
     return render_template("dashboard.html", leads=leads)
+
+
 
 
 @app.route("/add-lead", methods=["GET", "POST"])
@@ -354,3 +638,5 @@ def add_lead():
             flash(f"Error: {str(e)}", "danger")
 
     return render_template("add_lead.html", agents=agents)
+
+
