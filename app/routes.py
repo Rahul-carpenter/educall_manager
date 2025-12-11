@@ -22,7 +22,7 @@ from sqlalchemy import func
 from flask import current_app
 
 #from app.utils import login_required
-@app.route('/create-admin')
+'''@app.route('/create-admin')
 def create_admin():
     username = request.args.get('username', 'admin')
     password = request.args.get('password', 'admin123')
@@ -37,7 +37,7 @@ def create_admin():
     db.session.add(new_user)
     db.session.commit()
 
-    return f"Admin user '{username}' created successfully!" 
+    return f"Admin user '{username}' created successfully!" '''
 
 
 def login_required(role=None):
@@ -638,6 +638,7 @@ def add_lead():
             flash(f"Error: {str(e)}", "danger")
 
     return render_template("add_lead.html", agents=agents)
+
 
 
 
