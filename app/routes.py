@@ -127,7 +127,11 @@ def get_assigned_dates_for_agent():
         .order_by('date')
         .all()
     )
-    date_list = [d.date.strftime('%Y-%m-%d') for d in assigned_dates if d.date]
+    date_list = [
+    (d.date if isinstance(d.date, str) else d.date.strftime("%Y-%m-%d"))
+    for d in assigned_dates
+    ]
+
     return jsonify({'success': True, 'assigned_dates': date_list})
 
 
