@@ -40,24 +40,23 @@ pipeline {
         }
 
         stage("Run Tests") {
-            steps {
-                sh '''
-                    python3 -m venv venv
+                steps {
+                    sh '''
+                        python3 -m venv venv
+                        . venv/bin/activate   # POSIX-compliant
 
-                    # Use POSIX-compatible activation
-                    . venv/bin/activate
+                        # Upgrade pip/tools inside venv only
+                        pip install --upgrade pip setuptools wheel --break-system-packages
 
-                    pip install --upgrade pip setuptools wheel --break-system-packages
+                        # Avoid building numpy/pandas from source
+                        export PIP_ONLY_BINARY=:all:
 
-                    # Avoid building numpy/pandas
-                    export PIP_ONLY_BINARY=:all:
-
-                    pip install -r requirements.txt --break-system-packages
-
-                    pytest test.py
-                '''
+                        pip install -r requirements.txt --break-system-packages
+                        pytest test.py
+                    '''
+                }
             }
-        }
+
 
 
         stage("Deploy to Kubernetes") {
