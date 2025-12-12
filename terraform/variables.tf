@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "project" {
-  description = "Project name prefix"
+  description = "Educall_manager"
   type        = string
   default     = "educall"
 }

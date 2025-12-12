@@ -39,36 +39,38 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
+        stage("Run Tests") {
             steps {
                 sh '''
                     python3 -m venv venv
-                    . venv/bin/activate
 
-                    pip install --upgrade pip setuptools wheel
+                    # activate venv in SAME shell
+                    source venv/bin/activate
 
-                    # prevent pip from building numpy from source
+                    # allow pip upgrades only inside venv
+                    pip install --upgrade pip setuptools wheel --break-system-packages
+
+                    # avoid building numpy/pandas
                     export PIP_ONLY_BINARY=:all:
 
-                    pip install -r requirements.txt
-                    pytest test.py
+                    pip install -r requirements.txt --break-system-packages
+
+                    pytest tests/
                 '''
             }
         }
-
-
 
         stage("Deploy to Kubernetes") {
             steps {
                 withKubeConfig(credentialsId: 'kubeconfig-credential-id') {
 
                     sh """
-                    kubectl set image deployment/${KUBE_DEPLOYMENT} \
-                    web=${FULL_IMAGE} -n ${KUBE_NAMESPACE}
-                    """
+                        kubectl set image deployment/${KUBE_DEPLOYMENT} \
+                        web=${FULL_IMAGE} -n ${KUBE_NAMESPACE}
 
-                    sh "kubectl rollout restart deployment/${KUBE_DEPLOYMENT} -n ${KUBE_NAMESPACE}"
-                    sh "kubectl rollout status deployment/${KUBE_DEPLOYMENT} -n ${KUBE_NAMESPACE}"
+                        kubectl rollout restart deployment/${KUBE_DEPLOYMENT} -n ${KUBE_NAMESPACE}
+                        kubectl rollout status deployment/${KUBE_DEPLOYMENT} -n ${KUBE_NAMESPACE}
+                    """
                 }
             }
         }
