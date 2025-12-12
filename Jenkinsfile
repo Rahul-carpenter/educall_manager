@@ -41,11 +41,16 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                sh 'python3 -m venv venv'
-                sh '. venv/bin/activate && pip install -r requirements.txt'
-                sh '. venv/bin/activate && pytest test.py/'
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip setuptools wheel
+                    pip install -r requirements.txt
+                    pytest test.py
+                '''
             }
         }
+
 
         stage("Deploy to Kubernetes") {
             steps {
