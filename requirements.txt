@@ -17,8 +17,8 @@ Flask-WTF==1.2.1
 Flask-Mail==0.10.0
 
 # XLS/CSV handling
-numpy==1.26.4
-pandas==2.1.4
+numpy==2.1.1
+pandas==2.2.3
 openpyxl==3.1.2
 
 # Testing
