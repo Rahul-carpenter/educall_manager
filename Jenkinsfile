@@ -42,7 +42,7 @@ pipeline {
         stage("Run Tests") {
                 steps {
                     sh '''
-                        python3 -m venv venv
+                        python3.11 -m venv venv
                         . venv/bin/activate   # POSIX-compliant
 
                         # Upgrade pip/tools inside venv only
