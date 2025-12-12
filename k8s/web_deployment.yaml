@@ -6,6 +6,12 @@ metadata:
     app: educall-web
 spec:
   replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: educall-web
@@ -16,7 +22,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: rj00/educall_manager:v1.0.2
+          image: rj00/educall_manager:v1.0.4
           ports:
             - containerPort: 5000
 

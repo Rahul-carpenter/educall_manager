@@ -16,13 +16,13 @@ spec:
     spec:
       containers:
       - name: educall-worker
-        image: rj00/educall_manager:v1.0.2
+        image: rj00/educall_manager:v1.0.4
         imagePullPolicy: IfNotPresent
 
         command: ["celery"]
         args:
           - "-A"
-          - "celery_app.celery_app"
+          - "celery_app.celery"
           - "worker"
           - "--loglevel=info"
           - "--concurrency=2"

@@ -1,37 +1,32 @@
 import os
 from celery import Celery
-from flask import Flask
+from dotenv import load_dotenv
+load_dotenv()
+# Celery config (Redis URLs passed via env vars)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/1")
 
-def make_celery(app):
-    broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    result_backend = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+celery = Celery(
+    "educall",
+    broker=CELERY_BROKER_URL,
+    backend=CELERY_RESULT_BACKEND
+)
 
-    celery = Celery(
-        app.import_name,
-        broker=broker_url,
-        backend=result_backend
-    )
-
-    celery.conf.update(app.config)
-
-    # -------
-    # Make Celery tasks run INSIDE Flask app context
-    # -------
-    class ContextTask(celery.Task):
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return super().__call__(*args, **kwargs)
-
-    celery.Task = ContextTask
-    return celery
+# optional configs
+celery.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="Asia/Kolkata"
+)
 
 
-# --------------------------------------
-# Initialize Celery with your Flask app
-# --------------------------------------
-def create_celery():
-    # local import to avoid circular import
-    from app import app
-    return make_celery(app)
+# Allow tasks to use Flask App Context
+from app import app
 
-celery = create_celery()
+class FlaskContextTask(celery.Task):
+    def __call__(self, *args, **kwargs):
+        with app.app_context():
+            return super().__call__(*args, **kwargs)
+
+celery.Task = FlaskContextTask

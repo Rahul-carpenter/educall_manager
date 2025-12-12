@@ -9,3 +9,6 @@ data:
   MAIL_USE_TLS: "true"
   MAIL_DEFAULT_SENDER: "EduCall Manager <educallmanager01@gmail.com>"
   ADMIN_EMAIL: rahulcarpenter486@gmail.com
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+
