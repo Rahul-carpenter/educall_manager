@@ -55,7 +55,7 @@ pipeline {
 
                     pip install -r requirements.txt --break-system-packages
 
-                    pytest tests/
+                    pytest test.py
                 '''
             }
         }
