@@ -32,7 +32,7 @@ pipeline {
                 sh """
                     pip install --upgrade pip
                     pip install -r requirements.txt
-                    pytest -q
+                    pytest -q test.py
                 """
             }
         }
