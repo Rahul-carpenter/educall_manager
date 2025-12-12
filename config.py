@@ -10,7 +10,10 @@ class Config:
     DATABASE_URL = os.getenv("DATABASE_URL")
 
     if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL is not set!")
+        if os.getenv("FLASK_ENV") == "testing":
+            DATABASE_URL = "sqlite:///:memory:"
+        else:
+            raise RuntimeError("DATABASE_URL is not set!")
 
     # Convert postgres:// to postgresql:// for SQLAlchemy
     if DATABASE_URL.startswith("postgres://"):

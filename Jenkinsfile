@@ -28,6 +28,10 @@ pipeline {
                     args '-u root:root'
                 }
             }
+             environment {
+            DATABASE_URL = "sqlite:///:memory:"        // <-- temporary test DB
+            FLASK_ENV = "testing"
+             }
             steps {
                 sh """
                     pip install --upgrade pip
