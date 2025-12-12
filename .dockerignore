@@ -5,3 +5,4 @@ venv/
 .gitignore
 k8s/
 docker-compose.yaml
+terraform/
