@@ -1,13 +1,8 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11'
-            args '-u root:root'
-        }
-    }
+
+    agent none
 
     environment {
-        APP_NAME       = "educall-manager"
         IMAGE_NAME     = "rj00/educall_manager"
         IMAGE_TAG      = "${env.BUILD_NUMBER}"
         FULL_IMAGE     = "${IMAGE_NAME}:${IMAGE_TAG}"
@@ -19,43 +14,52 @@ pipeline {
     stages {
 
         stage("Checkout") {
+            agent any
             steps {
                 git branch: "full_production",
                     url: "https://github.com/Rahul-carpenter/educall_manager.git"
             }
         }
 
-        stage('Run Tests') {
+        stage("Run Tests") {
+            agent {
+                docker {
+                    image 'python:3.11'
+                    args '-u root:root'
+                }
+            }
             steps {
                 sh """
-                    python3 -m venv venv
-                    . venv/bin/activate
+                    pip install --upgrade pip
                     pip install -r requirements.txt
-                    pytest test.py
+                    pytest -q
                 """
             }
         }
 
         stage("Build Docker Image") {
+            agent any
             steps {
                 sh "docker build -t ${FULL_IMAGE} ."
             }
         }
 
         stage("Push Image to DockerHub") {
+            agent any
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-credentials',
                     usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
+                    usernameVariable: 'DOCKER_PASS'
                 )]) {
-                    sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                     sh "docker push ${FULL_IMAGE}"
                 }
             }
         }
 
         stage("Deploy to Kubernetes") {
+            agent any
             steps {
                 withKubeConfig(credentialsId: 'kubeconfig-credential-id') {
                     sh "kubectl set image deployment/${KUBE_DEPLOYMENT} web=${FULL_IMAGE} -n ${KUBE_NAMESPACE}"
