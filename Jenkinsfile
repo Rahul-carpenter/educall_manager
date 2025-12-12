@@ -44,13 +44,12 @@ pipeline {
                 sh '''
                     python3 -m venv venv
 
-                    # activate venv in SAME shell
-                    source venv/bin/activate
+                    # Use POSIX-compatible activation
+                    . venv/bin/activate
 
-                    # allow pip upgrades only inside venv
                     pip install --upgrade pip setuptools wheel --break-system-packages
 
-                    # avoid building numpy/pandas
+                    # Avoid building numpy/pandas
                     export PIP_ONLY_BINARY=:all:
 
                     pip install -r requirements.txt --break-system-packages
@@ -59,6 +58,7 @@ pipeline {
                 '''
             }
         }
+
 
         stage("Deploy to Kubernetes") {
             steps {
