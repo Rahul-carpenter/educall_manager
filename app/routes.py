@@ -20,9 +20,10 @@ from io import BytesIO
 from flask import send_file
 from sqlalchemy import func
 from flask import current_app
+from tasks import task_add
 
 #from app.utils import login_required
-'''@app.route('/create-admin')
+@app.route('/create-admin')
 def create_admin():
     username = request.args.get('username', 'admin')
     password = request.args.get('password', 'admin123')
@@ -37,7 +38,17 @@ def create_admin():
     db.session.add(new_user)
     db.session.commit()
 
-    return f"Admin user '{username}' created successfully!" '''
+    return f"Admin user '{username}' created successfully!"
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
+
+
+@app.route("/test-celery")
+def test_celery():
+    result = task_add.delay(2, 3)
+    return jsonify({"task_id": result.id}), 202
 
 
 def login_required(role=None):
@@ -116,7 +127,11 @@ def get_assigned_dates_for_agent():
         .order_by('date')
         .all()
     )
-    date_list = [d.date.strftime('%Y-%m-%d') for d in assigned_dates if d.date]
+    date_list = [
+    (d.date if isinstance(d.date, str) else d.date.strftime("%Y-%m-%d"))
+    for d in assigned_dates
+    ]
+
     return jsonify({'success': True, 'assigned_dates': date_list})
 
 
@@ -638,7 +653,4 @@ def add_lead():
             flash(f"Error: {str(e)}", "danger")
 
     return render_template("add_lead.html", agents=agents)
-
-
-
 
